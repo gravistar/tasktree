@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Task Tree</title>
+
+    <!-- third party -->
+    <script src="https://www.dropbox.com/static/api/1/dropbox-datastores-0.1.0-b3.js" type="text/javascript"></script>
+    <script src="lib/zepto.js"></script>
+    <script src="lib/bootstrap.js"></script>
+    <script src="lib/icanhaz.js"></script>
+    <script src="lib/underscore.js"></script>
+
+    <!-- helper -->
+    <script src="helper/datastore_util.js"></script>
+    <script src="helper/tasktree.js"></script>
+
+    <!-- the app -->
+    <script src="app.js"></script>
+
+    <link rel="stylesheet" href="lib/bootstrap.css">
+    <link rel="stylesheet" href="lib/style.css">
+
+    <!-- ich templates -->
+
+    <!-- task element -->
+    <script id="task" type="text/html">
+        <li id={{id}} class="task">
+            ( {{desc}} )
+            <button class="taskDel">
+                &times;
+            </button>
+            <button class="showTaskForm">
+                &plus;
+            </button>
+            <button class="showWeights">
+                W
+            </button>
+            <button class="showCompletion">
+                C
+            </button>
+            <button class="showDuration">
+                D
+            </button>
+            <label>
+                Completed:
+                <input type="checkbox" name="targetCompleted">
+            </label>
+            <span class="completion">
+                ( {{percent}} % done )
+            </span>
+            <span class="duration">
+                ( {{durationStr}} )
+            </span>
+            <ul class="subtasks">
+            </ul>
+        </li>
+    </script>
+
+    <script id="taskForm" type="text/html">
+        <form class="taskForm">
+            <label>Description:
+                <input type="text" name="desc">
+                <button type="submit" class="taskAdd">
+                    &plus;
+                </button>
+            </label>
+
+        </form>
+    </script>
+
+</head>
+<body>
+<div id="wrapper">
+    <div id="main" style="displaynone">
+        <div id="globalCreateTask">
+            <button id="globalCreateTaskButton">Global Task</button>
+        </div>
+
+        <!-- task tree is here -->
+        <ul id="taskTree">
+        </ul>
+    </div>
+
+    <div id="login">
+        <button id="loginButton">Link to Dropbox</button>
+    </div>
+</div>
+</body>
+</html>

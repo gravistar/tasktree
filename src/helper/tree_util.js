@@ -19,7 +19,7 @@ var TreeUtil = (function(){
      * @param parentIdField {String}. Name of the parent field.
      * @returns {Array[String]}. Record ids of the parents.
      */
-    var parentIdSet = TreeUtil.parentIdSet = function (records, parentIdField){
+    var getParentIdSet = TreeUtil.getParentIdSet = function(records, parentIdField){
         if (typeof(parentIdField) === "undefined") {
             parentIdField = PARENT_ID_FIELD;
         }
@@ -36,14 +36,33 @@ var TreeUtil = (function(){
      * @param parentIdField
      * @returns {*}
      */
-    var parentSet = TreeUtil.parentSet = function (records, parentTable, parentIdField) {
+    var getParentSet = TreeUtil.getParentSet = function(records, parentTable, parentIdField) {
         if (typeof(parentIdField) === "undefined") {
             parentIdField = PARENT_ID_FIELD;
         }
-        var parentIdSet = parentIdSet(records, parentIdField);
+        var parentIdSet = getParentIdSet(records, parentIdField);
         return _.map(parentIdSet, function(parentId){
             return parentTable.get(parentId);
         });
+    }
+
+    /**
+     * Returns all the root records in the table.
+     * @param table
+     * @param parentIdField
+     * @param noParentId
+     * @returns {Array[Datastore.Record]}
+     */
+    TreeUtil.allRootRecords = function(table, parentIdField, noParentId) {
+        if (typeof(parentIdField) === "undefined") {
+            parentIdField = PARENT_ID_FIELD;
+        }
+        if (typeof(noParentId) === "undefined") {
+            noParentId = NO_PARENT;
+        }
+        var queryParam = {};
+        queryParam[parentIdField] = noParentId;
+        return table.query(queryParam);
     }
 
 
@@ -93,7 +112,7 @@ var TreeUtil = (function(){
             parentIdField = PARENT_ID_FIELD;
         }
         var records = rcEvent.affectedRecordsForTable(table.getId());
-        return parentSet(records, parentTable, parentIdField);
+        return getParentSet(records, parentTable, parentIdField);
     }
 
     /**
@@ -127,64 +146,34 @@ var TreeUtil = (function(){
         return function(rcEvent) {
             var deleted = deletedRecords(rcEvent, table);
             _.each(deleted, callback);
-
-            /*function(record){
-                $("#" + record.getId()).remove();
-            });*/
         }
     }
 
     /**
-     * Builds a RecordsChanged callback that's invoked on the root records.
-     * @param table {Datastore.Table}. Table to get root records from.
-     * @param renderFn {Function}. Function that tells how to render the record.
-     * @param parentIdField
-     * @param NO_PARENT
+     *
+     * @param table
+     * @param callback
      * @returns {Function}
      */
     TreeUtil.rcOnRoots = function(table, callback) {
         return function(rcEvent) {
             var roots = rootRecords(rcEvent, table);
             _.each(roots, callback);
-
-            /**
-            _.each(roots, function(record){
-                var $changedRecord = renderFn(record);
-                $main.append($changedRecord);
-                addListeners($changedRecord);
-            })*/
         }
     }
 
+
     /**
-     * Builds a RecordsChanged callback for records that are subnodes in the record hierarchy.
+     *
      * @param table
-     * @param parentTable
-     * @param parentRenderFn
-     * @param addListeners
+     * @param callback
+     * @returns {Function}
      */
     TreeUtil.rcOnChildren = function(table, callback) {
         return function(rcEvent) {
             var children = childRecords(rcEvent, table);
             _.each(children, callback);
         }
-
-        /*
-        var children = childRecords(rcEvent)
-        var records = rcEvent.affectedRecordsForTable(table.getId());
-        var children = _.filter(records, function(record){
-            return record.get(PARENT_ID_FIELD) !== NO_PARENT;
-        });
-        var parentIdSet = parentIdSet(children, PARENT_ID_FIELD);
-        var parents = _.map(parentIdSet, function(parentId){
-            return parentTable.get(parentId);
-        });
-        _.each(parents, function(parent){
-            var $parent = parentRenderFn(parent);
-            $("#" + parent.getId()).replaceWith($parent);
-            addListeners($parent);
-        })
-        */
     }
 
     /**
@@ -196,8 +185,8 @@ var TreeUtil = (function(){
      */
     TreeUtil.rcOnAffectedParents = function(table, parentTable, callback){
         return function(rcEvent) {
-            var affectedParents = affectedParents(rcEvent, table, parentTable);
-            _.each(affectedParents, callback);
+            var parents = affectedParents(rcEvent, table, parentTable);
+            _.each(parents, callback);
         }
     }
 

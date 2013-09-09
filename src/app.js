@@ -38,8 +38,10 @@ $(function (){
             addGlobalElements();
 
             // render existing tasks
+            _.each(TreeUtil.allRootRecords(taskTable), taskChangedCb);
 
-            //
+            // add records changed listeners
+            addRecordsChangedListeners(datastore);
         })
     }
 
@@ -59,7 +61,7 @@ $(function (){
         });
 
         // have the add button use the global create
-        $globalCreateTask.find("button.submit").click(globalTaskAddCb);
+        $globalCreateTask.find(".taskAdd").click(globalTaskAddCb);
     }
 
     // UI Listener callbacks
@@ -69,8 +71,9 @@ $(function (){
      */
     function globalTaskAddCb(e){
         e.preventDefault();
-        var $parent = $(this).parent();
-        createTaskFromForm($parent, TaskTree.NO_PARENT());
+        var $parent = $(this).closest(".taskForm");
+        console.log("break 1");
+        createTaskFromForm($parent, TreeUtil.NO_PARENT);
     }
 
     /**
@@ -217,13 +220,10 @@ $(function (){
         var weightFn = function(subtask){
             return subtask.get("weight");
         }
-
         var doneWeight = _.reduce(_.filter(subtasks, function(subtask){
             return TaskTree.completed(subtask);
         }), 0, weightFn);
-
         var totalWeight = _.reduce(subtasks, 0, weightFn);
-
         return doneWeight / totalWeight * 100.0;
     }
 
@@ -234,8 +234,9 @@ $(function (){
      *      rooted at task is fully rendered.
      */
     function renderTask(task){
-        var taskData = taskData(task);
-        var $task = ich.task(taskData);
+        console.log("rendering task " + task.get("desc"));
+        var data = taskData(task);
+        var $task = ich.task(data);
 
         // render the children and attach
         var children = taskTable.query({parentId: task.getId()});
@@ -258,6 +259,53 @@ $(function (){
     }
 
     // RecordsChanged callbacks
+    /**
+    *
+    * @param task
+    * @param $parent
+    */
+    function taskChangedCb(task) {
+        console.log("wtf");
+        var $task = renderTask(task);
+        addButtonListeners($task);
+        var $parent = $main;
+        var parentId = task.get(TreeUtil.PARENT_ID_FIELD);
+        if (task.get(parentId) !== null) {
+            $parent = $("#" + task.get(parentId));
+        }
+        var $prev = $parent.find("#" + task.getId());
+        if ($prev.length === 0) {
+            // new task added
+
+            $parent.children(".subtasks").append($task);
+        } else {
+            // task updated
+
+            $prev.replaceWith($task);
+        }
+    }
+
+    /**
+     *
+     * @param parent
+     */
+    function parentsChangedCb(parent){
+        var $old = $("#" + parent.getId());
+        var $new = renderTask(parent);
+        addButtonListeners($new);
+        $old.replaceWith($new);
+    }
+
+    /**
+     * adds records changed listeners to datastore.
+     * @param datastore {Datastore}
+     */
+    function addRecordsChangedListeners(datastore){
+        var rcRootCb = TreeUtil.rcOnRoots(taskTable, taskChangedCb);
+        var rcParentCb = TreeUtil.rcOnAffectedParents(taskTable, taskTable, parentsChangedCb);
+        datastore.recordsChanged.addListener(rcRootCb);
+        datastore.recordsChanged.addListener(rcParentCb);
+    }
 
 });
 

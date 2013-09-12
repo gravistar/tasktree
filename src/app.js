@@ -252,7 +252,13 @@ $(function (){
         var $subtasksList = $task.children(".subtasks");
         $subtasksList.empty();
         _.each(children, function(child){
-            $subtasksList.append($("#" + child.getId()).first());
+            var $child = $("#" + child.getId());
+            if ($child.length === 0) {
+                $child = renderTask(child);
+            } else {
+                $child = $child.first();
+            }
+            $subtasksList.append($child);
         });
 
         // attach the task form and hide
@@ -279,7 +285,8 @@ $(function (){
         var $task = renderTask(task);
         var $prev = $parent.find("#" + task.getId());
         if ($prev.length === 0) {
-            // new task added
+            // new task added. really this is only needed for roots...
+            // renderTask takes care of the rest.
             console.log("adding task: " + task.get("desc"));
             $parent.children(".subtasks").first().append($task);
         } else {

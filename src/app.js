@@ -181,11 +181,11 @@ $(function (){
      * @returns {string}
      */
     function humanReadable(timeMs) {
-        var days, hours, minutes, tmp = (timeMs/1000)/60;
-        minutes = parseInt(tmp) % 60;
-        tmp = tmp / 60;
-        hours = parseInt(tmp) % 24;
-        days = parseInt(tmp / 24);
+        var days, hours, minutes, tmp = Math.floor((timeMs/1000)/60);
+        minutes = tmp % 60;
+        tmp = Math.floor(tmp / 60);
+        hours = tmp % 24;
+        days = Math.floor(tmp / 24);
         return days + " days, " + hours + " hours, " + minutes + " minutes";
     }
 

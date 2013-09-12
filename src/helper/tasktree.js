@@ -43,6 +43,5 @@ var TaskTree = (function() {
         return task.get("completeTime") !== null;
     };
 
-
     return ret;
 })();

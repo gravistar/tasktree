@@ -5,9 +5,10 @@
  * missing for incomplete tasks.
  */
 var TaskTree = (function() {
-    var ret = {}, DEFAULT_WEIGHT = 100;
+    var ret = {}, DEFAULT_WEIGHT = 100, CHILD_LIST_FIELD = "subtaskIds";
 
     ret.DEFAULT_WEIGHT = DEFAULT_WEIGHT;
+    ret.CHILD_LIST_FIELD = CHILD_LIST_FIELD;
 
     /**
      * Builds a fresh task object with some defaults.
@@ -16,17 +17,20 @@ var TaskTree = (function() {
      * @param weight {double}. Weight of this task in computing parent task. N/A for roots.
      * @param expanded {boolean}. True if expanded in UI.
      * @param createTime {Date}. Date of creation.
+     * @param subtaskIds {Array[String]}. Ids of
      * @param queued {boolean}. True if this task is queued in the todo queue. May remove this.
      */
     ret.buildTask = function(parentId, desc, weight, expanded, queued){
-        return {
+        var ret = {
             parentId: parentId,
             desc: desc,
             weight: DEFAULT_WEIGHT,
             expanded: expanded,
             createTime: new Date(),
             queued: queued
-        }
+        };
+        ret[CHILD_LIST_FIELD] = [];
+        return ret;
     };
 
     /**
@@ -38,6 +42,7 @@ var TaskTree = (function() {
     ret.completed = function(task) {
         return task.get("completeTime") !== null;
     };
+
 
     return ret;
 })();

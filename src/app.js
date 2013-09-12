@@ -38,7 +38,7 @@ $(function (){
             addGlobalElements();
 
             // render existing tasks
-            _.each(TreeUtil.allRootRecords(taskTable), taskChangedCb);
+            _.each(TreeUtil.allRootRecords(taskTable), rootTaskChangedCb);
 
             // add records changed listeners
             addRecordsChangedListeners(datastore);
@@ -72,7 +72,6 @@ $(function (){
     function globalTaskAddCb(e){
         e.preventDefault();
         var $parent = $(this).closest(".taskForm");
-        console.log("break 1");
         createTaskFromForm($parent, TreeUtil.NO_PARENT);
     }
 
@@ -81,6 +80,7 @@ $(function (){
      * @param e
      */
     function taskAddCb(e){
+        console.log("task add cb invoked");
         e.preventDefault();
         var $this = $(this),
             $parentTask = $this.closest(".task"),
@@ -96,7 +96,8 @@ $(function (){
      */
     function createTaskFromForm($parent, parentId){
         var desc = $parent.find("input[name='desc']").val();
-        taskTable.insert(TaskTree.buildTask(parentId, desc, 0.0, false, false));
+        TreeUtil.createTreeRecord(TaskTree.buildTask(parentId, desc, 0.0, false, false),
+            taskTable, taskTable, TaskTree.CHILD_LIST_FIELD);
     }
 
     /**
@@ -104,25 +105,28 @@ $(function (){
      * @param $root
      */
     function addButtonListeners($root) {
-        var $taskForm = $root.children(".taskForm");
+        var $taskForm = $root.children(".taskForm").first();
 
         var id = $root.attr("id");
         var task = taskTable.get(id);
 
         // delete callback (records changed listener)
-        $root.find("button.taskDel").click(function(e){
+        $root.children("button.taskDel").click(function(e){
             e.preventDefault();
-            task.deleteRecord();
+            TreeUtil.onTreeBottomUp(task, taskTable, function(task){
+                TreeUtil.deleteTreeRecord(task, taskTable, TaskTree.CHILD_LIST_FIELD);
+            }, TaskTree.CHILD_LIST_FIELD);
         });
 
         // toggle task form
-        $root.find("button.showTaskForm").click(function(e){
+        $root.children("button.showTaskForm").click(function(e){
             e.preventDefault();
             $taskForm.toggle();
         });
 
         // checkbox (records changed listener)
-        $root.find("input[name='targetCompleted']").click(function(e){
+        // first() is necessary here to prevent additional callbacks on children
+        $root.find("input[name='targetCompleted']").first().click(function(e){
             e.preventDefault();
             var checked = $(this).is(":checked");
             var completeTime = null;
@@ -130,21 +134,21 @@ $(function (){
                 completeTime = new Date();
             }
             task.set("completeTime", completeTime);
-        })
+        });
 
         // task add
         $taskForm.find("button.taskAdd").click(taskAddCb);
 
         // toggle completion
-        $root.find("button.showCompletion").click(function (e){
+        $root.children("button.showCompletion").click(function (e){
             e.preventDefault();
-            $root.find(".completion").toggle();
+            $root.children(".completion").toggle();
         });
 
         // toggle duration
-        $root.find("button.showDuration").click(function (e){
+        $root.children("button.showDuration").click(function (e){
             e.preventDefault();
-            $root.find(".duration").toggle();
+            $root.children(".duration").toggle();
         });
     }
 
@@ -166,7 +170,7 @@ $(function (){
         }
         var durationStr = prefix + humanReadable(duration);
 
-        ret.percentage = percentage;
+        ret.percent = percentage;
         ret.durationStr = durationStr;
         return ret;
     }
@@ -217,33 +221,38 @@ $(function (){
             }
         }
 
-        var weightFn = function(subtask){
-            return subtask.get("weight");
+        var sum = function(a,b){
+            return a+b;
         }
-        var doneWeight = _.reduce(_.filter(subtasks, function(subtask){
+
+        var doneWeight = _.reduce(DatastoreUtil.getFieldValues(_.filter(subtasks, function(subtask){
             return TaskTree.completed(subtask);
-        }), 0, weightFn);
-        var totalWeight = _.reduce(subtasks, 0, weightFn);
+        }), "weight"), sum, 0);
+        var totalWeight = _.reduce(DatastoreUtil.getFieldValues(subtasks, "weight"), sum, 0);
         return doneWeight / totalWeight * 100.0;
     }
 
     /**
-     * Renders the task subtree rooted at task (including task itself)
+     * Renders the task subtree rooted at task (including task itself).
+     * Assumes the immediate child elements have already been rendered.
      * @param task. {Datastore.Record}. Task to be rendered
      * @returns {Zepto element}. Zepto selector on div for task. Subtree
      *      rooted at task is fully rendered.
      */
     function renderTask(task){
-        console.log("rendering task " + task.get("desc"));
+        console.log("rendering task: " + task.get("desc"));
         var data = taskData(task);
         var $task = ich.task(data);
 
         // render the children and attach
-        var children = taskTable.query({parentId: task.getId()});
-        var $subtasksList = $task.children(".tasks");
+        var childIds = task.get(TaskTree.CHILD_LIST_FIELD).toArray();
+        var children = _.map(childIds, function(childId){
+            return taskTable.get(childId);
+        });
+        var $subtasksList = $task.children(".subtasks");
         $subtasksList.empty();
         _.each(children, function(child){
-            $subtasksList.append(renderTask(child));
+            $subtasksList.append($("#" + child.getId()).first());
         });
 
         // attach the task form and hide
@@ -252,48 +261,60 @@ $(function (){
         $task.append($taskForm);
 
         if (TaskTree.completed(task)) {
+            $task.children(".completeBox").first().find("input.checkbox").attr("checked", "checked");
             // strikethrough
         }
+        addButtonListeners($task);
 
         return $task;
     }
 
     // RecordsChanged callbacks
     /**
-    *
+    * Renders the task and adds it to the dom.
     * @param task
     * @param $parent
     */
-    function taskChangedCb(task) {
-        console.log("wtf");
+    function taskChangedCb(task, $parent) {
         var $task = renderTask(task);
-        addButtonListeners($task);
-        var $parent = $main;
-        var parentId = task.get(TreeUtil.PARENT_ID_FIELD);
-        if (task.get(parentId) !== null) {
-            $parent = $("#" + task.get(parentId));
-        }
         var $prev = $parent.find("#" + task.getId());
         if ($prev.length === 0) {
             // new task added
-
-            $parent.children(".subtasks").append($task);
+            console.log("adding task: " + task.get("desc"));
+            $parent.children(".subtasks").first().append($task);
         } else {
             // task updated
-
+            console.log("modifying task: " + task.get("desc"));
             $prev.replaceWith($task);
         }
     }
 
     /**
      *
-     * @param parent
+     * @param task
      */
-    function parentsChangedCb(parent){
-        var $old = $("#" + parent.getId());
-        var $new = renderTask(parent);
-        addButtonListeners($new);
-        $old.replaceWith($new);
+    function rootTaskChangedCb(task) {
+        taskChangedCb(task, $main);
+    }
+
+    /**
+     *
+     * @param task
+     */
+    function childTaskChangedCb(task) {
+        var parentId = task.get(TreeUtil.PARENT_ID_FIELD);
+        var parent = taskTable.get(parentId);
+        var $parent = $("#" + parent.getId());
+        taskChangedCb(task, $parent);
+    }
+
+    /**
+     *
+     * @param record
+     */
+    function delCb(record) {
+        console.log("delete task cb called");
+        $("#" + record.getId()).remove();
     }
 
     /**
@@ -301,10 +322,12 @@ $(function (){
      * @param datastore {Datastore}
      */
     function addRecordsChangedListeners(datastore){
-        var rcRootCb = TreeUtil.rcOnRoots(taskTable, taskChangedCb);
-        var rcParentCb = TreeUtil.rcOnAffectedParents(taskTable, taskTable, parentsChangedCb);
+        var rcRootCb = TreeUtil.rcOnRoots(taskTable, rootTaskChangedCb);
+        var rcChildCb = TreeUtil.rcOnChildren(taskTable, childTaskChangedCb);
+        var rcDelCb = TreeUtil.rcOnDeleted(taskTable, delCb);
         datastore.recordsChanged.addListener(rcRootCb);
-        datastore.recordsChanged.addListener(rcParentCb);
+        datastore.recordsChanged.addListener(rcChildCb);
+        datastore.recordsChanged.addListener(rcDelCb);
     }
 
 });

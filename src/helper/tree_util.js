@@ -1,8 +1,9 @@
 /**
  * Library functions for handling Datastore.Records that have a tree structure.
- * A pretty natural way to have a tree structure for these records is to have
- * each record have a "parentId" field.  Finding the children of a record just amounts
- * to a .query({parentId: id}).
+ *
+ * The Records are assumed to be laid out in the following fashion:
+ *      parentIdField: parentId {String}
+ *      childListField: children {Array[String]}
  *
  * Requires Datastore.Util.
  */
@@ -26,7 +27,9 @@ var TreeUtil = (function(){
         var getParentId = function(record) {
             return record.get(parentIdField);
         };
-        return _.uniq(__.nonNull(_.map(records, getParentId)));
+        return _.filter(_.uniq(__.nonNull(_.map(records, getParentId))), function(id){
+            return id !== NO_PARENT;
+        });
     }
 
     /**
@@ -42,8 +45,7 @@ var TreeUtil = (function(){
         }
         var parentIdSet = getParentIdSet(records, parentIdField);
         return _.map(parentIdSet, function(parentId){
-            return parentTable.get(parentId);
-        });
+            return parentTable.get(parentId) });
     }
 
     /**
@@ -81,6 +83,85 @@ var TreeUtil = (function(){
 
     /**
      *
+     * @type {Function}
+     */
+    var liveRecords = TreeUtil.liveRecords = function(rcEvent, table) {
+        var records = rcEvent.affectedRecordsForTable(table.getId());
+        return _.filter(records, function(record){
+            return !record.isDeleted();
+        });
+    }
+
+    /**
+     * Creates a new record from recordData in recordTable.  Then updates the parent record so it has a reference
+     * to the newly created record.
+     * @param toCreateData {Object}. Data for the record to be created.
+     * @param recordTable {Datastore.Table}. Table to create record in.
+     * @param parentTable {Datastore.Table}. Parent table.
+     * @param childListField {String}. Name of the children field in parent record.
+     * @param parentIdField {String|undefined}. Name of the parentId field in created record. Defaults to NO_PARENT.
+     * @returns {Datastore.Record}. The created record.
+     */
+    TreeUtil.createTreeRecord = function(toCreateData, recordTable, parentTable, childListField, parentIdField) {
+        if (typeof(parentIdField) === "undefined") {
+            parentIdField = PARENT_ID_FIELD;
+        }
+        var created = recordTable.insert(toCreateData);
+        var parentId = created.get(parentIdField);
+        if (parentId !== NO_PARENT) {
+            var parent = parentTable.get(parentId);
+            var children = parent.get(childListField).toArray();
+            children.push(created.getId());
+            parent.set(childListField, children);
+        }
+        return created;
+    }
+
+    /**
+     * First updates parent record's child list to remove reference to record to be deleted.
+     * Then deletes the record.
+     * @param toDelete {Datastore.Record}. Record to delete.
+     * @param parentTable {Datastore.Table}. Parent table.
+     * @param childListField {String}. Name of the children field in parent record.
+     * @param parentIdField {String|undefined}. Name of the parentId field in created record. Defaults to NO_PARENT.
+     * @returns Datastore.Record. The deleted record.
+     */
+    TreeUtil.deleteTreeRecord = function(toDelete, parentTable, childListField, parentIdField) {
+        if (typeof(parentIdField) === "undefined") {
+            parentIdField = PARENT_ID_FIELD;
+        }
+        var parentId = toDelete.get(parentIdField);
+        if (parentId !== NO_PARENT) {
+            var parent = parentTable.get(parentId);
+            var children = parent.get(childListField).toArray();
+            parent.set(childListField, _.filter(children, function(childId){
+                return toDelete.getId() !== childId;
+            }));
+        }
+        return toDelete.deleteRecord();
+    }
+
+    /**
+     * Updates a record, then calls an update callback on this record's parent.
+     * @param toUpdate
+     * @param updateData
+     * @param parentTable
+     * @param childListField
+     * @param parentIdField
+     */
+    TreeUtil.updateTreeRecord = function(toUpdate, updateData, parentTable, updateParentCb, parentIdField){
+        if (typeof(parentIdField) === "undefined") {
+            parentIdField = PARENT_ID_FIELD;
+        }
+        toUpdate.update(updateData);
+        var parentId = toUpdate.get(parentIdField);
+        var parent = parentTable.get(parentId);
+        updateParentCb(parent);
+        return toUpdate;
+    }
+
+    /**
+     *
      * @param rcEvent
      * @param table
      * @param parentIdField
@@ -96,7 +177,7 @@ var TreeUtil = (function(){
         }
         var records = rcEvent.affectedRecordsForTable(table.getId());
         return _.filter(records, function(record){
-            return record.get(parentIdField) === noParent;
+            return !record.isDeleted() && record.get(parentIdField) === noParent;
         });
     }
 
@@ -132,7 +213,7 @@ var TreeUtil = (function(){
         }
         var records = rcEvent.affectedRecordsForTable(table.getId());
         return _.filter(records, function(record){
-            return record.get(parentIdField) !== noParent;
+            return !record.isDeleted() && record.get(parentIdField) !== noParent;
         });
     }
 
@@ -188,6 +269,57 @@ var TreeUtil = (function(){
             var parents = affectedParents(rcEvent, table, parentTable);
             _.each(parents, callback);
         }
+    }
+
+    /**
+     * Calls the callback on each of the records rooted at root.
+     * @param root {Datastore.Record}.
+     * @param table {Datastore.Table}. Children must be in this table.
+     * @param callback {Function}. Takes in {Datastore.Record} as its argument.
+     * @param childListField {String}. Name of the field with child ids.
+     * @param topDown {boolean}. True if topdown order. Otherwise, bottom up.
+     */
+    TreeUtil.onTree = function(root, table, callback, childListField, topDown) {
+        var childIds = root.get(childListField).toArray();
+        var children = _.map(childIds, function(childId){
+            return table.get(childId);
+        });
+        if (topDown) {
+            callback(root, children);
+        }
+        _.each(children, function(child){
+            TreeUtil.onTree(child, table, callback, childListField, topDown);
+        });
+
+        if (!topDown) {
+            callback(root, children);
+        }
+    }
+
+    /**
+     * Calls the callback on each of the records in the subtree rooted at root.
+     * Does so in a bottom up order- children processed before parents.
+     * @param root
+     * @param table
+     * @param callback
+     * @param childListField
+     * @returns {*}
+     */
+    TreeUtil.onTreeBottomUp = function(root, table, callback, childListField) {
+       return TreeUtil.onTree(root, table, callback, childListField, false);
+    }
+
+    /**
+     * Calls the callback on each of the records in the subtree rooted at root.
+     * Does so in a top down order- parents processed before children.
+     * @param root
+     * @param table
+     * @param callback
+     * @param childListField
+     * @returns {*}
+     */
+    TreeUtil.onTreeTopDown = function(root, table, callback, childListField) {
+        return TreeUtil.onTree(root, table, callback, childListField, true);
     }
 
     return TreeUtil;

@@ -27,7 +27,9 @@
     <!-- task element -->
     <script id="task" type="text/html">
         <li id={{id}} class="task">
-            ( {{desc}} )
+            <span class="desc">
+                ( {{desc}} )
+            </span>
             <button class="taskDel">
                 &times;
             </button>
@@ -48,7 +50,7 @@
                 <input type="checkbox" name="targetCompleted">
             </label>
             <span class="completion">
-                ( {{percent}} % done )
+                ( Subtask completion: {{percent}} % )
             </span>
             <span class="duration">
                 ( {{durationStr}} )

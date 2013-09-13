@@ -272,6 +272,51 @@ var TreeUtil = (function(){
     }
 
     /**
+     * Calls the callback on each of the records ancestors (excluding the record itself)
+     * @param root
+     * @param table
+     * @param callback
+     * @param parentIdField
+     * @param topDown
+     */
+    var onAncestors = TreeUtil.onAncestors = function(root, table, callback, topDown) {
+        var parentId, parent, ancestors = [];
+        while (true) {
+            parentId = root.get(PARENT_ID_FIELD);
+            if (parentId === NO_PARENT) {
+                break;
+            }
+            parent = table.get(parentId);
+            ancestors.push(parent);
+            root = parent;
+        }
+        if (topDown) {
+            ancestors = ancestors.reverse();
+        }
+        _.each(ancestors, callback);
+    }
+
+    /**
+     *
+     * @param root
+     * @param table
+     * @param callback
+     */
+    TreeUtil.onAncestorsTopDown = function(root, table, callback) {
+        onAncestors(root, table, callback, true);
+    }
+
+    /**
+     *
+     * @param root
+     * @param table
+     * @param callback
+     */
+    TreeUtil.onAncestorsBottomUp = function(root, table, callback) {
+        onAncestors(root, table, callback, false);
+    }
+
+    /**
      * Calls the callback on each of the records rooted at root.
      * @param root {Datastore.Record}.
      * @param table {Datastore.Table}. Children must be in this table.

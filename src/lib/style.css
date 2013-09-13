@@ -6,7 +6,8 @@ li {
     border: 1px solid #ccc;
 }
 li span.text { display: inline-block; vertical-align: middle; }
-li.completed span { text-decoration: line-through; color: #bbb; }
+span.completed { text-decoration: line-through; color: #bbb; }
+.completed span { text-decoration: line-through; color: #bbb; }
 button {
     margin: 0px 10px;
     background-color: #f0f0f0;

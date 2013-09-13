@@ -72,7 +72,8 @@ $(function (){
     function globalTaskAddCb(e){
         e.preventDefault();
         var $parent = $(this).closest(".taskForm");
-        createTaskFromForm($parent, TreeUtil.NO_PARENT);
+        var created = createTaskFromForm($parent, TreeUtil.NO_PARENT);
+        updateCompletionSubtree(created, null);
     }
 
     /**
@@ -85,7 +86,8 @@ $(function (){
         var $this = $(this),
             $parentTask = $this.closest(".task"),
             $parent = $this.parent();
-        createTaskFromForm($parent, $parentTask.attr("id"));
+        var created = createTaskFromForm($parent, $parentTask.attr("id"));
+        updateCompletionSubtree(created, null);
     }
 
     /**
@@ -93,10 +95,11 @@ $(function (){
      * feels natural.
      * @param $parent {Zepto element}. Zepto selector on parent div.
      * @param parentId {String}. Id of parent task.
+     * @returns {Datastore.Record}. The created task.
      */
     function createTaskFromForm($parent, parentId){
         var desc = $parent.find("input[name='desc']").val();
-        TreeUtil.createTreeRecord(TaskTree.buildTask(parentId, desc, 0.0, false, false),
+        return TreeUtil.createTreeRecord(TaskTree.buildTask(parentId, desc, 0.0, false, false),
             taskTable, taskTable, TaskTree.CHILD_LIST_FIELD);
     }
 
@@ -113,6 +116,7 @@ $(function (){
         // delete callback (records changed listener)
         $root.children("button.taskDel").click(function(e){
             e.preventDefault();
+            updateCompletionAncestors(task, true);
             TreeUtil.onTreeBottomUp(task, taskTable, function(task){
                 TreeUtil.deleteTreeRecord(task, taskTable, TaskTree.CHILD_LIST_FIELD);
             }, TaskTree.CHILD_LIST_FIELD);
@@ -133,7 +137,8 @@ $(function (){
             if (checked) {
                 completeTime = new Date();
             }
-            task.set("completeTime", completeTime);
+            updateCompletionSubtree(task, completeTime);
+            updateCompletionAncestors(task, completeTime);
         });
 
         // task add
@@ -152,13 +157,50 @@ $(function (){
         });
     }
 
+    /**
+     * Update completion on the subtree rooted at task.
+     * @param task
+     * @param completeTime. {Date}. Can be null, indicated update to incomplete.
+     */
+    function updateCompletionSubtree(task, completeTime) {
+        // complete all incomplete tasks on the subtree
+        TreeUtil.onTreeBottomUp(task, taskTable, function(subtask){
+            if (!TaskTree.completed(subtask)) {
+                subtask.set("completeTime", completeTime);
+            }
+        }, TaskTree.CHILD_LIST_FIELD);
+        // this needs to happen because if
+        // the task is completed, it won't be set to
+        // incomplete on the previous line.
+        // not sure of a better way atm
+        task.set("completeTime", completeTime);
+    }
+
+    /**
+     * Update completion on the ancestors of task, in bottom up order.
+     * @param task
+     * @param completeTime {Date}. Can be null, indicating update to incomplete.
+     */
+    function updateCompletionAncestors(task, completeTime) {
+        // un-completing a subtask makes all ancestors incomplete
+        if (completeTime === null) {
+            TreeUtil.onAncestorsBottomUp(task, taskTable, function(ancestor){
+                ancestor.set("completeTime", null);
+            });
+        }
+        // compute subtask completion for the parent
+        TreeUtil.onAncestorsBottomUp(task, taskTable, function(ancestor){
+            ancestor.set("completion", taskCompletion(ancestor));
+        });
+    }
+
     // Rendering fn
     /**
      * Computes the data necessary for rendering a task.
      * @param task
      * @returns {Object}
      */
-    function taskData(task){
+    function taskRenderData(task){
         var ret = DatastoreUtil.getFieldValuesWithId(task);
         var completed = TaskTree.completed(task);
         var percentage = taskCompletion(task);
@@ -208,17 +250,12 @@ $(function (){
      * @returns {number}
      */
     function taskCompletion(task){
-        var queryParam = {};
-        queryParam[TreeUtil.PARENT_ID_FIELD] = task.getId();
-        var subtasks = taskTable.query(queryParam);
+        var subtaskIds = task.get(TaskTree.CHILD_LIST_FIELD).toArray();
+        var subtasks = DatastoreUtil.bulkGet(taskTable, subtaskIds);
 
         // no subtasks
         if (subtasks.length === 0) {
-            if (TaskTree.completed(task)) {
-                return 100.0;
-            } else {
-                return 0.0;
-            }
+            return 100.0;
         }
 
         var sum = function(a,b){
@@ -241,7 +278,7 @@ $(function (){
      */
     function renderTask(task){
         console.log("rendering task: " + task.get("desc"));
-        var data = taskData(task);
+        var data = taskRenderData(task);
         var $task = ich.task(data);
 
         // render the children and attach
@@ -267,8 +304,11 @@ $(function (){
         $task.append($taskForm);
 
         if (TaskTree.completed(task)) {
-            $task.children(".completeBox").first().find("input.checkbox").attr("checked", "checked");
-            // strikethrough
+            $task.children(".completeBox").first().find("input").attr("checked", "true");
+
+            // does strikethrough. this is pretty groddy
+            $task.addClass("completed");
+
         }
         addButtonListeners($task);
 
@@ -287,11 +327,11 @@ $(function (){
         if ($prev.length === 0) {
             // new task added. really this is only needed for roots...
             // renderTask takes care of the rest.
-            console.log("adding task: " + task.get("desc"));
+            console.log("[jQuery] adding task: " + task.get("desc"));
             $parent.children(".subtasks").first().append($task);
         } else {
             // task updated
-            console.log("modifying task: " + task.get("desc"));
+            console.log("[jQuery] modifying task: " + task.get("desc"));
             $prev.replaceWith($task);
         }
     }

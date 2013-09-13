@@ -8,6 +8,17 @@ var DatastoreUtil = (function(){
     var ret = {};
 
     /**
+     * Wipes all the records in a table.
+     * @param table
+     */
+    ret.wipeTable = function(table){
+        var allRecords = table.query({});
+        _.each(allRecords, function(record){
+            record.deleteRecord();
+        });
+    };
+
+    /**
      * Fetches the records specified by recordIds from table.
      * @param table {Datastore.Table}
      * @param recordId {Array[String]}

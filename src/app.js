@@ -40,6 +40,9 @@ $(function (){
             // render existing tasks
             _.each(TreeUtil.allRootRecords(taskTable), rootTaskChangedCb);
 
+            // make sortable AFTER items added
+            $main.find(".subtasks").first().sortable();
+
             // add records changed listeners
             addRecordsChangedListeners(datastore);
         })
@@ -62,6 +65,11 @@ $(function (){
 
         // have the add button use the global create
         $globalCreateTask.find(".taskAdd").click(globalTaskAddCb);
+
+        $("#globalShowCompleted").find("button").click(function (e){
+            e.preventDefault();
+            $(".completed").toggle();
+        });
     }
 
     // UI Listener callbacks
@@ -87,7 +95,7 @@ $(function (){
             $parentTask = $this.closest(".task"),
             $parent = $this.parent();
         var created = createTaskFromForm($parent, $parentTask.attr("id"));
-        updateCompletionSubtree(created, null);
+        updateCompletionAncestors(created, null);
     }
 
     /**
@@ -108,13 +116,13 @@ $(function (){
      * @param $root
      */
     function addButtonListeners($root) {
-        var $taskForm = $root.children(".taskForm").first();
+        var $taskForm = $root.find(".taskForm").first();
 
         var id = $root.attr("id");
         var task = taskTable.get(id);
 
         // delete callback (records changed listener)
-        $root.children("button.taskDel").click(function(e){
+        $root.find("button.taskDel").first().click(function(e){
             e.preventDefault();
             updateCompletionAncestors(task, true);
             TreeUtil.onTreeBottomUp(task, taskTable, function(task){
@@ -123,7 +131,7 @@ $(function (){
         });
 
         // toggle task form
-        $root.children("button.showTaskForm").click(function(e){
+        $root.find("button.showTaskForm").first().click(function(e){
             e.preventDefault();
             $taskForm.toggle();
         });
@@ -145,15 +153,21 @@ $(function (){
         $taskForm.find("button.taskAdd").click(taskAddCb);
 
         // toggle completion
-        $root.children("button.showCompletion").click(function (e){
+        $root.find("button.showCompletion").first().click(function (e){
             e.preventDefault();
-            $root.children(".completion").toggle();
+            $root.find(".completion").first().toggle();
         });
 
         // toggle duration
-        $root.children("button.showDuration").click(function (e){
+        $root.find("button.showDuration").first().click(function (e){
             e.preventDefault();
-            $root.children(".duration").toggle();
+            $root.find(".duration").first().toggle();
+        });
+
+        // toggle subtask list visibility
+        $root.find("button.showSubtasks").first().click(function (e){
+            e.preventDefault();
+            $root.find(".subtasks").first().toggle();
         });
     }
 
@@ -182,15 +196,15 @@ $(function (){
      * @param completeTime {Date}. Can be null, indicating update to incomplete.
      */
     function updateCompletionAncestors(task, completeTime) {
-        // un-completing a subtask makes all ancestors incomplete
-        if (completeTime === null) {
-            TreeUtil.onAncestorsBottomUp(task, taskTable, function(ancestor){
-                ancestor.set("completeTime", null);
-            });
-        }
         // compute subtask completion for the parent
         TreeUtil.onAncestorsBottomUp(task, taskTable, function(ancestor){
-            ancestor.set("completion", taskCompletion(ancestor));
+            var completionFields = {};
+            // un-completing a subtask makes all ancestors incomplete
+            if (completeTime === null) {
+                completionFields.completeTime = null;
+            }
+            completionFields.completion = taskCompletion(ancestor);
+            ancestor.update(completionFields);
         });
     }
 
@@ -281,12 +295,35 @@ $(function (){
         var data = taskRenderData(task);
         var $task = ich.task(data);
 
+        // attach the task form and hide
+        var $taskForm = ich.taskForm();
+        $taskForm.hide();
+        $task.append($taskForm);
+
+        if (TaskTree.completed(task)) {
+            $task.find(".completeBox").first().find("input").attr("checked", "true");
+
+            // does strikethrough. this is pretty groddy
+            $task.addClass("completed");
+        }
         // render the children and attach
+        renderSubtasks(task, $task);
+        addButtonListeners($task);
+        return $task;
+    }
+
+    /**
+     * Adds the subtasks to $task
+     * @param task
+     * @param $task
+     */
+    function renderSubtasks(task, $task) {
         var childIds = task.get(TaskTree.CHILD_LIST_FIELD).toArray();
         var children = _.map(childIds, function(childId){
             return taskTable.get(childId);
         });
-        var $subtasksList = $task.children(".subtasks");
+        var $subtasksList = $("<ul></ul>");
+        $subtasksList.addClass("subtasks")
         $subtasksList.empty();
         _.each(children, function(child){
             var $child = $("#" + child.getId());
@@ -297,22 +334,9 @@ $(function (){
             }
             $subtasksList.append($child);
         });
-
-        // attach the task form and hide
-        var $taskForm = ich.taskForm();
-        $taskForm.hide();
-        $task.append($taskForm);
-
-        if (TaskTree.completed(task)) {
-            $task.children(".completeBox").first().find("input").attr("checked", "true");
-
-            // does strikethrough. this is pretty groddy
-            $task.addClass("completed");
-
-        }
-        addButtonListeners($task);
-
-        return $task;
+        // make sortable AFTER items added
+        $subtasksList.sortable();
+        $task.append($subtasksList);
     }
 
     // RecordsChanged callbacks
@@ -324,16 +348,17 @@ $(function (){
     function taskChangedCb(task, $parent) {
         var $task = renderTask(task);
         var $prev = $parent.find("#" + task.getId());
+        var $subtaskList;
         if ($prev.length === 0) {
             // new task added. really this is only needed for roots...
             // renderTask takes care of the rest.
-            console.log("[jQuery] adding task: " + task.get("desc"));
-            $parent.children(".subtasks").first().append($task);
+            $subtaskList = $parent.find(".subtasks").first();
+            $subtaskList.append($task);
         } else {
             // task updated
-            console.log("[jQuery] modifying task: " + task.get("desc"));
             $prev.replaceWith($task);
         }
+
     }
 
     /**
@@ -342,6 +367,8 @@ $(function (){
      */
     function rootTaskChangedCb(task) {
         taskChangedCb(task, $main);
+        // need to bind listener to new element in root case
+        $main.find(".subtasks").first().sortable();
     }
 
     /**

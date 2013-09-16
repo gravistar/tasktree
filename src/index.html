@@ -4,11 +4,12 @@
     <title>Task Tree</title>
 
     <!-- third party -->
+    <script src="http://code.jquery.com/jquery-1.9.1.js"></script>
+    <script src="lib/underscore.js"></script>
     <script src="lib/datastore.js"></script>
-    <script src="lib/zepto.js"></script>
     <script src="lib/bootstrap.js"></script>
     <script src="lib/icanhaz.js"></script>
-    <script src="lib/underscore.js"></script>
+    <script src="lib/jquery.sortable.js"></script>
 
     <!-- helper -->
     <script src="helper/datastore_util.js"></script>
@@ -26,37 +27,40 @@
 
     <!-- task element -->
     <script id="task" type="text/html">
-        <li id={{id}} class="task">
-            <span class="desc">
-                ( {{desc}} )
-            </span>
-            <button class="taskDel">
-                &times;
-            </button>
-            <button class="showTaskForm">
-                &plus;
-            </button>
-            <button class="showWeights">
-                W
-            </button>
-            <button class="showCompletion">
-                C
-            </button>
-            <button class="showDuration">
-                D
-            </button>
-            <label class="completeBox">
-                Completed:
-                <input type="checkbox" name="targetCompleted">
-            </label>
-            <span class="completion">
-                ( Subtask completion: {{percent}} % )
-            </span>
-            <span class="duration">
-                ( {{durationStr}} )
-            </span>
-            <ul class="subtasks">
-            </ul>
+        <li id={{id}} class="task" draggable="true">
+            <div class="taskMeta">
+                <button class="taskDel">
+                    &times;
+                </button>
+                <button class="showTaskForm">
+                    &plus;
+                </button>
+                <button class="showWeights">
+                    W
+                </button>
+                <button class="showCompletion">
+                    %
+                </button>
+                <button class="showDuration">
+                    &#x231b;
+                </button>
+                <button class="showSubtasks">
+                    >
+                </button>
+                <label class="completeBox">
+                    Completed:
+                    <input type="checkbox" name="targetCompleted">
+                </label>
+                <span class="desc">
+                    ( {{desc}} )
+                </span>
+                <span class="completion" style="display: none;">
+                    ( Subtask completion: {{percent}} % )
+                </span>
+                <span class="duration" style="display: none;">
+                    ( {{durationStr}} )
+                </span>
+            </div>
         </li>
     </script>
 
@@ -75,9 +79,13 @@
 </head>
 <body>
 <div id="wrapper">
-    <div id="main" style="displaynone">
+    <div id="main" style="display: none;">
         <div id="globalCreateTask">
-            <button id="globalCreateTaskButton">Global Task</button>
+            <button id="globalCreateTaskButton">+Global Task</button>
+        </div>
+
+        <div id="globalShowCompleted">
+            <button id="globalShowCompletedButton">Show Completed</button>
         </div>
 
         <!-- task tree is here -->

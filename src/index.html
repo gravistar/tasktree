@@ -12,6 +12,7 @@
     <script src="lib/jquery.sortable.js"></script>
 
     <!-- helper -->
+    <script src="helper/js_util.js"></script>
     <script src="helper/datastore_util.js"></script>
     <script src="helper/underscore_util.js"></script>
     <script src="helper/tree_util.js"></script>
@@ -52,13 +53,15 @@
                     <input type="checkbox" name="targetCompleted">
                 </label>
                 <span class="desc">
-                    ( {{desc}} )
+                    Desc: {{desc}}
+                    <br>
                 </span>
-                <span class="completion" style="display: none;">
-                    ( Subtask completion: {{percent}} % )
+                <span class="completion">
+                    Subtask completion: {{percent}} %
+                    <br>
                 </span>
-                <span class="duration" style="display: none;">
-                    ( {{durationStr}} )
+                <span class="duration">
+                    {{durationStr}}
                 </span>
             </div>
         </li>
@@ -72,10 +75,40 @@
                     &plus;
                 </button>
             </label>
-
         </form>
     </script>
 
+    <!-- archive entry template.
+        expected to have a "tasks" list append to it-->
+    <script id="archiveEntry" type="text/html">
+        <li id={{id}} class="archiveEntry">
+            {{date}}
+            <button class="showTasks">
+                >
+            </button>
+        </li>
+    </script>
+
+    <!-- archived task
+        this is kind of dumb, but can't think of a better way atm.
+         no subtasks list. -->
+    <script id="archivedTask" type="text/html">
+        <li id={{id}} class="archivedTask">
+            <span class="desc">
+                Desc: {{desc}}
+                <br>
+            </span>
+            <span class="duration">
+                {{durationStr}}
+            </span>
+            <button class="unarchive">
+                U
+            </button>
+            <button class="taskDel">
+                &times;
+            </button>
+        </li>
+    </script>
 </head>
 <body>
 <div id="wrapper">
@@ -88,8 +121,16 @@
             <button id="globalShowCompletedButton">Show Completed</button>
         </div>
 
+        <div id="globalArchiveCompleted">
+            <button id="globalArchiveCompletedButton">Archive Completed</button>
+        </div>
+
         <!-- task tree is here -->
         <ul class="subtasks">
+        </ul>
+    </div>
+    <div id="archive">
+        <ul id="archiveList">
         </ul>
     </div>
 

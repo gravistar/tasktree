@@ -9,6 +9,7 @@ var client = new Dropbox.Client({key: DROPBOX_APP_KEY});
 
 $(function (){
     var taskTable, taskTableId = "tasks", $main = $("#main");
+    var archiveTable, archiveTableId = "archive";
 
     $('#loginButton').click(function(e){
         e.preventDefault();
@@ -33,9 +34,17 @@ $(function (){
             }
 
             taskTable = datastore.getTable(taskTableId);
+            archiveTable = datastore.getTable(archiveTableId);
+
+            // periodically update the UI
+
+            // create archive objects for days since last
 
             // add global listeners
             addGlobalElements();
+
+            // update the archive
+            updateArchiveList();
 
             // render existing tasks
             _.each(TreeUtil.allRootRecords(taskTable), rootTaskChangedCb);
@@ -47,6 +56,16 @@ $(function (){
             addRecordsChangedListeners(datastore);
         })
     }
+
+    // Archive methods
+    function addArchiveDates() {
+        var archiveEntries = archiveTable.query();
+        var today = jsUtil.roundDay(new Date());
+        var mostRecent = _.max(archiveEntries, function(archiveEntry){
+            return archiveEntry.get("date");
+        });
+    }
+
 
     // UI Listener setup
     /**
@@ -68,9 +87,45 @@ $(function (){
 
         $("#globalShowCompleted").find("button").click(function (e){
             e.preventDefault();
-            $(".completed").toggle();
+            $(".completed").not(".archived").toggle();
         });
+
+        $("#globalArchiveCompleted").find("button").click(function (e){
+            e.preventDefault();
+            archiveCompleted();
+        })
     }
+
+    // Archive methods
+    function archiveCompleted(){
+        // get all the completed
+        var $completedEls = $(".completed");
+        $completedEls.each(function(){
+            var taskId = $(this).attr("id");
+            console.log("archiving : " + taskId);
+            var task = taskTable.get(taskId);
+            var completeTime = task.get("completeTime");
+            var completeDate = jsUtil.roundDay(completeTime);
+
+            // see if there's already an archive entry for this date
+            var archiveEntrys = archiveTable.query({"date": completeDate});
+            var archiveEntry;
+            if (archiveEntrys.length === 0) {
+                archiveEntry = archiveTable.insert(TaskTree.buildArchiveEntry(completeDate));
+            } else {
+                archiveEntry = archiveEntrys[0];
+            }
+            var archiveEntryTasks = archiveEntry.get("tasks").toArray();
+            if (_.indexOf(archiveEntryTasks, task.getId()) === -1) {
+                console.log("updating archive entry tasks");
+                archiveEntryTasks.unshift(task.getId());
+                archiveEntry.set("tasks", archiveEntryTasks);
+            }
+        });
+        // should this go here?
+        $completedEls.hide();
+    }
+
 
     // UI Listener callbacks
     /**
@@ -80,8 +135,7 @@ $(function (){
     function globalTaskAddCb(e){
         e.preventDefault();
         var $parent = $(this).closest(".taskForm");
-        var created = createTaskFromForm($parent, TreeUtil.NO_PARENT);
-        updateCompletionSubtree(created, null);
+        createTaskFromForm($parent, TreeUtil.NO_PARENT);
     }
 
     /**
@@ -224,26 +278,14 @@ $(function (){
         if (completed) {
             prefix = "Took ";
         }
-        var durationStr = prefix + humanReadable(duration);
+        var durationStr = prefix + jsUtil.humanReadable(duration);
 
         ret.percent = percentage;
         ret.durationStr = durationStr;
         return ret;
     }
 
-    /**
-     * A generic time utility that most certainly doesn't belong here.
-     * @param timeMs
-     * @returns {string}
-     */
-    function humanReadable(timeMs) {
-        var days, hours, minutes, tmp = Math.floor((timeMs/1000)/60);
-        minutes = tmp % 60;
-        tmp = Math.floor(tmp / 60);
-        hours = tmp % 24;
-        days = Math.floor(tmp / 24);
-        return days + " days, " + hours + " hours, " + minutes + " minutes";
-    }
+
 
     /**
      * Returns the duration of the task.  If the task is completed,
@@ -353,7 +395,7 @@ $(function (){
             // new task added. really this is only needed for roots...
             // renderTask takes care of the rest.
             $subtaskList = $parent.find(".subtasks").first();
-            $subtaskList.append($task);
+            $subtaskList.prepend($task);
         } else {
             // task updated
             $prev.replaceWith($task);
@@ -392,6 +434,63 @@ $(function (){
     }
 
     /**
+     * Just renders an archive entry
+     * @param archiveEntry
+     */
+    function renderArchiveEntry(archiveEntry) {
+        // remove if it has no children
+        var archiveEntryData = DatastoreUtil.getFieldValuesWithId(archiveEntry);
+        var $archiveEntry = ich.archiveEntry(archiveEntryData);
+        var $taskList = $("<ul></ul>").addClass("tasks");
+        var taskIds = archiveEntry.get("tasks").toArray();
+        var tasks = DatastoreUtil.bulkGet(taskTable, taskIds);
+        _.each(tasks, function(task){
+            var taskData = taskRenderData(task);
+            var $task = ich.archivedTask(taskData);
+            $taskList.append($task);
+        });
+        return $archiveEntry.append($taskList);
+    }
+
+    /**
+     * Rerenders the archive list in sorted order. Invoked whenever there's a change
+     * in the archive entries.
+     * @param archiveEntry
+     */
+    function updateArchiveList(){
+        console.log("updating archive list");
+        var $archiveList = $("#archiveList");
+        $archiveList.empty();
+
+        var archiveEntrys = archiveTable.query();
+        console.log("num archive entries: " + archiveEntrys.length);
+        archiveEntrys.sort(function(lhs, rhs){
+            if (lhs.get("date") < rhs.get("date")) {
+                return -1;
+            }
+            if (lhs.get("date") > rhs.get("date")) {
+                return 1;
+            }
+            return 0;
+        });
+        _.each(archiveEntrys, function(archiveEntry){
+            $archiveList.append(renderArchiveEntry(archiveEntry));
+        });
+    }
+
+    /**
+     * Callback invoked when archiveEntries changed.  Renders archive entry
+     * @param rcEvent
+     */
+    function archiveCb(rcEvent) {
+        var archiveEntrys = rcEvent.affectedRecordsForTable(archiveTable.getId());
+        // should delete the ones which don't have any contents. will cause another cb
+        // rerender these
+        //_.each(archiveEntrys, renderArchiveEntry);
+        updateArchiveList();
+    }
+
+    /**
      * adds records changed listeners to datastore.
      * @param datastore {Datastore}
      */
@@ -402,6 +501,7 @@ $(function (){
         datastore.recordsChanged.addListener(rcRootCb);
         datastore.recordsChanged.addListener(rcChildCb);
         datastore.recordsChanged.addListener(rcDelCb);
+        datastore.recordsChanged.addListener(archiveCb);
     }
 
 });

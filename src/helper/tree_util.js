@@ -111,7 +111,7 @@ var TreeUtil = (function(){
         if (parentId !== NO_PARENT) {
             var parent = parentTable.get(parentId);
             var children = parent.get(childListField).toArray();
-            children.push(created.getId());
+            children.unshift(created.getId());
             parent.set(childListField, children);
         }
         return created;

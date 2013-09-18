@@ -3,6 +3,12 @@
  *
  * Important: completed tasks will have a completeTime field.  This field will be
  * missing for incomplete tasks.
+ *
+ * Other fields that I'm adding:
+ *      archived: Boolean. True if task is archived, false if not.  Task
+ *          must be completed to be archived.  When it gets marked as incomplete,
+ *          it gets unarchived.
+ *
  */
 var TaskTree = (function() {
     var ret = {}, DEFAULT_WEIGHT = 100, CHILD_LIST_FIELD = "subtaskIds";
@@ -32,6 +38,19 @@ var TaskTree = (function() {
         ret[CHILD_LIST_FIELD] = [];
         return ret;
     };
+
+    /**
+     * Builds a fresh archive entry.
+     * @param date. {Date}. The date this archive entry is for, up to single day precision.
+     * @returns {{date: *, tasks: Array}}
+     */
+    ret.buildArchiveEntry = function(date){
+        var ret = {
+            date : date,
+            tasks : []
+        };
+        return ret;
+    }
 
     /**
      * Returns true if the task is completed. So I don't have to put a bunch of

@@ -36,9 +36,11 @@
                 <button class="showTaskForm">
                     &plus;
                 </button>
+                <!-- Not sure how to do this
                 <button class="showWeights">
                     W
                 </button>
+                -->
                 <button class="showCompletion">
                     %
                 </button>
@@ -84,7 +86,8 @@
         expected to have a "tasks" list append to it-->
     <script id="archiveEntry" type="text/html">
         <li id={{id}} class="archiveEntry">
-            {{date}}
+            <span>{{date}}</span>
+            <span>Num tasks: {{numTasks}}</span>
             <button class="showTasks">
                 >
             </button>
@@ -116,13 +119,25 @@
 </head>
 <body>
 <div id="wrapper">
-    <div id="main" style="display: none;">
+    <div id="sidebar">
+        <div id="sidebarTitle">Lists</div>
+        <ul>
+            <li>All</li>
+        </ul>
+    </div>
+
+    <ul class="nav navTabs" id="tabs">
+        <li class="active">
+            <a href="#main" data-toggle="tab">Task Tree</a>
+        </li>
+        <li>
+            <a href="#archive" data-toggle="tab">Archive</a>
+        </li>
+    </ul>
+
+    <div id="main" style="display: none;" class="active">
         <div id="globalCreateTask">
             <button id="globalCreateTaskButton">+Global Task</button>
-        </div>
-
-        <div id="globalShowCompleted">
-            <button id="globalShowCompletedButton">Show Completed</button>
         </div>
 
         <div id="globalArchiveCompleted">

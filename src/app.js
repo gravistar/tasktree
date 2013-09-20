@@ -36,6 +36,8 @@ $(function (){
             taskTable = datastore.getTable(taskTableId);
             archiveTable = datastore.getTable(archiveTableId);
 
+            setupTabs();
+
             // periodically update the UI
 
             // create archive objects for days since last
@@ -68,6 +70,19 @@ $(function (){
 
 
     // UI Listener setup
+
+    function setupTabs(){
+        $("#main a").click(function(e){
+            e.preventDefault();
+            $(this).tab("show");
+        });
+
+        $("#archive a").click(function(e){
+            e.preventDefault();
+            $(this).tab("show");
+        });
+    }
+
     /**
      * Sets up the button and form which allows adding a global task
      */
@@ -84,11 +99,6 @@ $(function (){
 
         // have the add button use the global create
         $globalCreateTask.find(".taskAdd").click(globalTaskAddCb);
-
-        $("#globalShowCompleted").find("button").click(function (e){
-            e.preventDefault();
-            $(".completed").not(".archived").toggle();
-        });
 
         $("#globalArchiveCompleted").find("button").click(function (e){
             e.preventDefault();
@@ -203,21 +213,13 @@ $(function (){
                 completeTime = new Date();
             }
             updateCompletionSubtree(task, completeTime);
-            updateCompletionAncestors(task, completeTime);
-
             // update the task itself
             TaskTree.setCompleted(task, completeTime);
+            updateCompletionAncestors(task, completeTime);
         });
 
         // task add
         $taskForm.find("button.taskAdd").click(taskAddCb);
-
-        // toggle completion
-        $root.find("button.showCompletion").first().click(function (e){
-            e.preventDefault();
-            TaskTree.toggleShowCompleted(task);
-            //$root.find(".completion").first().toggle();
-        });
 
         // toggle duration
         $root.find("button.showDuration").first().click(function (e){
@@ -269,9 +271,13 @@ $(function (){
         });
         var newArchivedTaskIds = _.map(newArchivedtasks, function(archivedTask){
             return archivedTask.getId();
-        })
-        archiveEntry.set("tasks", newArchivedTaskIds);
-        TaskTree.toggleArchived(task);
+        });
+        if (newArchivedTaskIds.length === 0) {
+            archiveEntry.deleteRecord();
+        } else {
+            archiveEntry.set("tasks", newArchivedTaskIds);
+        }
+        task.set("archived", null);
     }
 
     /**
@@ -283,7 +289,7 @@ $(function (){
         // complete all incomplete tasks on the subtree
         TreeUtil.onTreeBottomUp(task, taskTable, function(subtask){
             if (!TaskTree.completed(subtask)) {
-                subtask.set("completeTime", completeTime);
+                TaskTree.setCompleted(subtask, completeTime);
             }
         }, TaskTree.CHILD_LIST_FIELD);
     }
@@ -408,10 +414,6 @@ $(function (){
             $task.addClass("completed");
         }
 
-        if (!TaskTree.showCompleted(task)){
-            $task.find(".completion").first().hide();
-        }
-
         if (!TaskTree.showDuration(task)){
             $task.find(".duration").first().hide();
         }
@@ -517,6 +519,7 @@ $(function (){
     function renderArchiveEntry(archiveEntry) {
         // remove if it has no children
         var archiveEntryData = DatastoreUtil.getFieldValuesWithId(archiveEntry);
+        archiveEntryData.numTasks = archiveEntry.get("tasks").length();
         var $archiveEntry = ich.archiveEntry(archiveEntryData);
         var $taskList = $archiveEntry.find("ul.tasks").first();
         var taskIds = archiveEntry.get("tasks").toArray();

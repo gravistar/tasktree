@@ -58,12 +58,14 @@ var TaskTree = (function() {
      * @param completeTime
      */
     ret.setCompleted = function(task, completeTime) {
+        var completeParams = {};
         if (completeTime === null) {
-            task.set("completed", null);
+            completeParams.completed = null;
         } else {
-            task.set("completed", true);
+            completeParams.completed = true;
         }
-        task.set("completeTime", completeTime);
+        completeParams.completeTime = completeTime;
+        task.update(completeParams);
     }
 
     /**

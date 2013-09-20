@@ -97,13 +97,21 @@ $(function (){
     }
 
     // Archive methods
+    /**
+     * Archives all completed tasks
+     */
     function archiveCompleted(){
         // get all the completed
-        var $completedEls = $(".completed");
-        $completedEls.each(function(){
-            var taskId = $(this).attr("id");
-            console.log("archiving : " + taskId);
-            var task = taskTable.get(taskId);
+        var completedTasks = taskTable.query({completed:true});
+        // filter out the archived ones
+        _.each(_.filter(completedTasks, function(task){
+            return !TaskTree.archived(task);
+        }), function(task){
+            console.log("archiving : " + task.getId());
+
+            // this task was unarchived, so archive it
+            TaskTree.toggleArchived(task);
+
             var completeTime = task.get("completeTime");
             var completeDate = jsUtil.roundDay(completeTime);
 
@@ -122,8 +130,6 @@ $(function (){
                 archiveEntry.set("tasks", archiveEntryTasks);
             }
         });
-        // should this go here?
-        $completedEls.hide();
     }
 
 
@@ -178,10 +184,7 @@ $(function (){
         // delete callback (records changed listener)
         $root.find("button.taskDel").first().click(function(e){
             e.preventDefault();
-            updateCompletionAncestors(task, true);
-            TreeUtil.onTreeBottomUp(task, taskTable, function(task){
-                TreeUtil.deleteTreeRecord(task, taskTable, TaskTree.CHILD_LIST_FIELD);
-            }, TaskTree.CHILD_LIST_FIELD);
+            taskDelete(task);
         });
 
         // toggle task form
@@ -201,6 +204,9 @@ $(function (){
             }
             updateCompletionSubtree(task, completeTime);
             updateCompletionAncestors(task, completeTime);
+
+            // update the task itself
+            TaskTree.setCompleted(task, completeTime);
         });
 
         // task add
@@ -209,20 +215,63 @@ $(function (){
         // toggle completion
         $root.find("button.showCompletion").first().click(function (e){
             e.preventDefault();
-            $root.find(".completion").first().toggle();
+            TaskTree.toggleShowCompleted(task);
+            //$root.find(".completion").first().toggle();
         });
 
         // toggle duration
         $root.find("button.showDuration").first().click(function (e){
             e.preventDefault();
-            $root.find(".duration").first().toggle();
+            TaskTree.toggleShowDuration(task);
+            //$root.find(".duration").first().toggle();
         });
 
         // toggle subtask list visibility
         $root.find("button.showSubtasks").first().click(function (e){
             e.preventDefault();
-            $root.find(".subtasks").first().toggle();
+            TaskTree.toggleExpanded(task);
+            //$root.find(".subtasks").first().toggle();
         });
+    }
+
+    /**
+     * Takes care of all the bookkeeping when a task gets deleted.  Need to do this
+     * because we can't get the fields of deleted records.
+     * @param task
+     */
+    function taskDelete(task){
+        // if completed and archived, remove it from archive
+        if (TaskTree.completed(task) && TaskTree.archived(task)){
+            unarchiveTask(task);
+        }
+
+        updateCompletionAncestors(task, true);
+        TreeUtil.onTreeBottomUp(task, taskTable, function(task){
+            TreeUtil.deleteTreeRecord(task, taskTable, TaskTree.CHILD_LIST_FIELD);
+        }, TaskTree.CHILD_LIST_FIELD);
+    }
+
+    /**
+     * Task assumed to be completed and archived
+     * @param task
+     */
+    function unarchiveTask(task){
+        var completeDate = jsUtil.roundDay(task.get("completeTime"));
+        var archiveEntrys = archiveTable.query({date:completeDate});
+        if (archiveEntrys.length === 0) {
+            return;
+        }
+        var archiveEntry = archiveEntrys[0]; // should exist
+        var archivedTaskIds = archiveEntry.get("tasks").toArray();
+        var archivedTasks = DatastoreUtil.bulkGet(taskTable, archivedTaskIds);
+        var newArchivedtasks = _.filter(archivedTasks, function(archivedTask){
+            return archivedTask.getId() !== task.getId();
+        });
+        var newArchivedTaskIds = _.map(newArchivedtasks, function(archivedTask){
+            return archivedTask.getId();
+        })
+        archiveEntry.set("tasks", newArchivedTaskIds);
+        TaskTree.toggleArchived(task);
     }
 
     /**
@@ -237,15 +286,11 @@ $(function (){
                 subtask.set("completeTime", completeTime);
             }
         }, TaskTree.CHILD_LIST_FIELD);
-        // this needs to happen because if
-        // the task is completed, it won't be set to
-        // incomplete on the previous line.
-        // not sure of a better way atm
-        task.set("completeTime", completeTime);
     }
 
     /**
      * Update completion on the ancestors of task, in bottom up order.
+     * Want to do just 1 update.
      * @param task
      * @param completeTime {Date}. Can be null, indicating update to incomplete.
      */
@@ -256,6 +301,7 @@ $(function (){
             // un-completing a subtask makes all ancestors incomplete
             if (completeTime === null) {
                 completionFields.completeTime = null;
+                completionFields.completed = null;
             }
             completionFields.completion = taskCompletion(ancestor);
             ancestor.update(completionFields);
@@ -284,8 +330,6 @@ $(function (){
         ret.durationStr = durationStr;
         return ret;
     }
-
-
 
     /**
      * Returns the duration of the task.  If the task is completed,
@@ -342,16 +386,39 @@ $(function (){
         $taskForm.hide();
         $task.append($taskForm);
 
+        // render the children and attach
+        renderSubtasks(task, $task);
+        renderTaskState(task, $task);
+        addButtonListeners($task);
+        return $task;
+    }
+
+    /**
+     * Applies the rendering status of task to the task el.
+     *
+     * @param task
+     * @param $task
+     */
+    function renderTaskState(task, $task){
+        // mark completed
         if (TaskTree.completed(task)) {
             $task.find(".completeBox").first().find("input").attr("checked", "true");
 
             // does strikethrough. this is pretty groddy
             $task.addClass("completed");
         }
-        // render the children and attach
-        renderSubtasks(task, $task);
-        addButtonListeners($task);
-        return $task;
+
+        if (!TaskTree.showCompleted(task)){
+            $task.find(".completion").first().hide();
+        }
+
+        if (!TaskTree.showDuration(task)){
+            $task.find(".duration").first().hide();
+        }
+
+        if (!TaskTree.expanded(task)){
+            $task.find(".subtasks").first().hide();
+        }
     }
 
     /**
@@ -364,8 +431,13 @@ $(function (){
         var children = _.map(childIds, function(childId){
             return taskTable.get(childId);
         });
-        var $subtasksList = $("<ul></ul>");
-        $subtasksList.addClass("subtasks")
+
+        // do not render the archived children
+        children = _.filter(children, function(child){
+            return !TaskTree.archived(child);
+        });
+
+        var $subtasksList = $task.find(".subtasks").first();
         $subtasksList.empty();
         _.each(children, function(child){
             var $child = $("#" + child.getId());
@@ -378,7 +450,6 @@ $(function (){
         });
         // make sortable AFTER items added
         $subtasksList.sortable();
-        $task.append($subtasksList);
     }
 
     // RecordsChanged callbacks
@@ -388,6 +459,11 @@ $(function (){
     * @param $parent
     */
     function taskChangedCb(task, $parent) {
+        if (TaskTree.archived(task)) {
+            $("#" + task.getId()).remove();
+            return;
+        }
+
         var $task = renderTask(task);
         var $prev = $parent.find("#" + task.getId());
         var $subtaskList;
@@ -400,7 +476,6 @@ $(function (){
             // task updated
             $prev.replaceWith($task);
         }
-
     }
 
     /**
@@ -425,12 +500,14 @@ $(function (){
     }
 
     /**
-     *
+     * Deletes all el's associated with record from the ui
      * @param record
      */
     function delCb(record) {
         console.log("delete task cb called");
         $("#" + record.getId()).remove();
+        // remove the archived el too
+        $("#archived-" + record.getId()).remove();
     }
 
     /**
@@ -441,7 +518,7 @@ $(function (){
         // remove if it has no children
         var archiveEntryData = DatastoreUtil.getFieldValuesWithId(archiveEntry);
         var $archiveEntry = ich.archiveEntry(archiveEntryData);
-        var $taskList = $("<ul></ul>").addClass("tasks");
+        var $taskList = $archiveEntry.find("ul.tasks").first();
         var taskIds = archiveEntry.get("tasks").toArray();
         var tasks = DatastoreUtil.bulkGet(taskTable, taskIds);
         _.each(tasks, function(task){
@@ -449,8 +526,17 @@ $(function (){
             var $task = ich.archivedTask(taskData);
             $taskList.append($task);
         });
-        return $archiveEntry.append($taskList);
+        $archiveEntry.append($taskList);
+        renderArchiveEntryState(archiveEntry, $archiveEntry);
+        return $archiveEntry;
     }
+
+    function renderArchiveEntryState(archiveEntry, $archiveEntry){
+        if (!TaskTree.expanded(archiveEntry)){
+            $archiveEntry.find(".tasks").first().hide();
+        }
+    }
+
 
     /**
      * Rerenders the archive list in sorted order. Invoked whenever there's a change
@@ -474,8 +560,50 @@ $(function (){
             return 0;
         });
         _.each(archiveEntrys, function(archiveEntry){
-            $archiveList.append(renderArchiveEntry(archiveEntry));
+            var $archiveEntry = renderArchiveEntry(archiveEntry);
+            $archiveList.append($archiveEntry);
+            addArchiveButtonListeners($archiveEntry);
         });
+    }
+
+    /**
+     * Adds buttons listeners to an archiveEntry
+     * @param $archiveEntry
+     */
+    function addArchiveButtonListeners($archiveEntry){
+        var id = $archiveEntry.attr("id");
+        var archiveEntry = archiveTable.get(id);
+        var prefixLen = "archived-".length;
+        $archiveEntry.find("button.showTasks").click(function(e){
+            e.preventDefault();
+            TaskTree.toggleExpanded(archiveEntry);
+            $(this).focus();
+        });
+
+        $archiveEntry.find("button.unarchive").click(function(e){
+            e.preventDefault();
+            var task = getArchivedTaskFromButton($(this), prefixLen);
+            unarchiveTask(task);
+        });
+
+        $archiveEntry.find("button.taskDel").click(function(e){
+            e.preventDefault();
+            var task = getArchivedTaskFromButton($(this), prefixLen);
+            taskDelete(task);
+        });
+    }
+
+    /**
+     * Helper method for the archiveEntry child listeners
+     * @param $button
+     * @param prefixLen
+     * @returns {*}
+     */
+    function getArchivedTaskFromButton($button, prefixLen){
+        var $archivedTask = $button.closest(".archivedTask").first();
+        // hacky string stuff...
+        var id = $archivedTask.attr("id").substr(prefixLen);
+        return taskTable.get(id);
     }
 
     /**

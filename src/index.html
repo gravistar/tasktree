@@ -64,6 +64,8 @@
                     {{durationStr}}
                 </span>
             </div>
+            <ul class="subtasks">
+            </ul>
         </li>
     </script>
 
@@ -86,6 +88,8 @@
             <button class="showTasks">
                 >
             </button>
+            <ul class="tasks">
+            </ul>
         </li>
     </script>
 
@@ -93,7 +97,7 @@
         this is kind of dumb, but can't think of a better way atm.
          no subtasks list. -->
     <script id="archivedTask" type="text/html">
-        <li id={{id}} class="archivedTask">
+        <li id="archived-{{id}}" class="completed archivedTask">
             <span class="desc">
                 Desc: {{desc}}
                 <br>
@@ -130,6 +134,7 @@
         </ul>
     </div>
     <div id="archive">
+        <span>Archive</span>
         <ul id="archiveList">
         </ul>
     </div>

@@ -53,6 +53,20 @@ var TaskTree = (function() {
     }
 
     /**
+     * Basically adding this completed field to make shit queryable
+     * @param task
+     * @param completeTime
+     */
+    ret.setCompleted = function(task, completeTime) {
+        if (completeTime === null) {
+            task.set("completed", null);
+        } else {
+            task.set("completed", true);
+        }
+        task.set("completeTime", completeTime);
+    }
+
+    /**
      * Returns true if the task is completed. So I don't have to put a bunch of
      * null checks everywhere.
      * @param task
@@ -61,6 +75,76 @@ var TaskTree = (function() {
     ret.completed = function(task) {
         return task.get("completeTime") !== null;
     };
+
+    /**
+     * Toggles whether the task should show its completed status.
+     * @param task
+     */
+    ret.toggleShowCompleted = function(task){
+        if (task.has("showCompleted")) {
+            task.set("showCompleted", null);
+        } else {
+            task.set("showCompleted", true);
+        }
+    }
+
+    /**
+     * Toggles whether the task should show its duration.
+     * @param task
+     */
+    ret.toggleShowDuration = function(task){
+        if (task.has("showDuration")) {
+            task.set("showDuration", null);
+        } else {
+            task.set("showDuration", true);
+        }
+    }
+
+    /**
+     * Toggles whether the record has been expanded or not.
+     * @param record
+     */
+    ret.toggleExpanded = function(record){
+        if (record.has("expanded")) {
+            record.set("expanded", null);
+        } else {
+            record.set("expanded", true);
+        }
+    }
+
+    /**
+     * Toggles whether the task is archived or not.
+     * @param task
+     */
+    ret.toggleArchived = function(task){
+        if (task.has("archived")) {
+            task.set("archived", null);
+        } else {
+            task.set("archived", true);
+        }
+    }
+
+    // statically checked getters
+    ret.showCompleted = function(task){
+        return task.has("showCompleted");
+    }
+
+    ret.showDuration = function(task){
+        return task.has("showDuration");
+    }
+
+    ret.archived = function(task){
+        return task.has("archived");
+    }
+
+    /**
+     * Applies to both archiveEntry and task.
+     * @param record
+     * @returns {*}
+     */
+    ret.expanded = function(record){
+        return record.has("expanded");
+    }
 
     return ret;
 })();

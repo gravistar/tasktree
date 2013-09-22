@@ -59,18 +59,7 @@ $(function (){
         })
     }
 
-    // Archive methods
-    function addArchiveDates() {
-        var archiveEntries = archiveTable.query();
-        var today = jsUtil.roundDay(new Date());
-        var mostRecent = _.max(archiveEntries, function(archiveEntry){
-            return archiveEntry.get("date");
-        });
-    }
-
-
     // UI Listener setup
-
     function setupTabs(){
         $("#main a").click(function(e){
             e.preventDefault();
@@ -144,42 +133,7 @@ $(function (){
 
 
     // UI Listener callbacks
-    /**
-     * Invoked when task form for adding a global task is submitted.
-     * @param e
-     */
-    function globalTaskAddCb(e){
-        e.preventDefault();
-        var $parent = $(this).closest(".taskForm");
-        createTaskFromForm($parent, TreeUtil.NO_PARENT);
-    }
 
-    /**
-     * Invoked when task form for adding a subtask of task is submitted.
-     * @param e
-     */
-    function taskAddCb(e){
-        console.log("task add cb invoked");
-        e.preventDefault();
-        var $this = $(this),
-            $parentTask = $this.closest(".task"),
-            $parent = $this.parent();
-        var created = createTaskFromForm($parent, $parentTask.attr("id"));
-        updateCompletionAncestors(created, null);
-    }
-
-    /**
-     * Puts a new task in the table. Still need to figure out weighting that
-     * feels natural.
-     * @param $parent {Zepto element}. Zepto selector on parent div.
-     * @param parentId {String}. Id of parent task.
-     * @returns {Datastore.Record}. The created task.
-     */
-    function createTaskFromForm($parent, parentId){
-        var desc = $parent.find("input[name='desc']").val();
-        return TreeUtil.createTreeRecord(TaskTree.buildTask(parentId, desc, 0.0, false, false),
-            taskTable, taskTable, TaskTree.CHILD_LIST_FIELD);
-    }
 
     /**
      * Adds all the UI listeners
@@ -236,6 +190,47 @@ $(function (){
         });
     }
 
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    /// RECORD MUTATING FUNCTIONS
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    /**
+     * Invoked when task form for adding a global task is submitted.
+     * @param e
+     */
+    function globalTaskAddCb(e){
+        e.preventDefault();
+        var $parent = $(this).closest(".taskForm");
+        createTaskFromForm($parent, TreeUtil.NO_PARENT);
+    }
+
+    /**
+     * Invoked when task form for adding a subtask of task is submitted.
+     * @param e
+     */
+    function taskAddCb(e){
+        console.log("task add cb invoked");
+        e.preventDefault();
+        var $this = $(this),
+            $parentTask = $this.closest(".task"),
+            $parent = $this.parent();
+        var created = createTaskFromForm($parent, $parentTask.attr("id"));
+        updateCompletionAncestors(created, null);
+    }
+
+    /**
+     * Puts a new task in the table. Still need to figure out weighting that
+     * feels natural.
+     * @param $parent {Zepto element}. Zepto selector on parent div.
+     * @param parentId {String}. Id of parent task.
+     * @returns {Datastore.Record}. The created task.
+     */
+    function createTaskFromForm($parent, parentId){
+        var desc = $parent.find("input[name='desc']").val();
+        return TreeUtil.createTreeRecord(TaskTree.buildTask(parentId, desc, 0.0, false, false),
+            taskTable, taskTable, TaskTree.CHILD_LIST_FIELD);
+    }
     /**
      * Takes care of all the bookkeeping when a task gets deleted.  Need to do this
      * because we can't get the fields of deleted records.
@@ -261,9 +256,10 @@ $(function (){
         var completeDate = jsUtil.roundDay(task.get("completeTime"));
         var archiveEntrys = archiveTable.query({date:completeDate});
         if (archiveEntrys.length === 0) {
+            // should not get here
             return;
         }
-        var archiveEntry = archiveEntrys[0]; // should exist
+        var archiveEntry = archiveEntrys[0];
         var archivedTaskIds = archiveEntry.get("tasks").toArray();
         var archivedTasks = DatastoreUtil.bulkGet(taskTable, archivedTaskIds);
         var newArchivedtasks = _.filter(archivedTasks, function(archivedTask){
@@ -314,7 +310,7 @@ $(function (){
         });
     }
 
-    // Rendering fn
+    // Rendering fn. These are all rendering helpers...
     /**
      * Computes the data necessary for rendering a task.
      * @param task
@@ -337,6 +333,7 @@ $(function (){
         return ret;
     }
 
+    // These functions actually don't mutate anything.  Can probably even get moved out.
     /**
      * Returns the duration of the task.  If the task is completed,
      * @param task
@@ -374,6 +371,12 @@ $(function (){
         var totalWeight = _.reduce(DatastoreUtil.getFieldValues(subtasks, "weight"), sum, 0);
         return doneWeight / totalWeight * 100.0;
     }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    /// RENDERING FUNCTIONS
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////
 
     /**
      * Renders the task subtree rooted at task (including task itself).
@@ -547,12 +550,10 @@ $(function (){
      * @param archiveEntry
      */
     function updateArchiveList(){
-        console.log("updating archive list");
         var $archiveList = $("#archiveList");
         $archiveList.empty();
 
         var archiveEntrys = archiveTable.query();
-        console.log("num archive entries: " + archiveEntrys.length);
         archiveEntrys.sort(function(lhs, rhs){
             if (lhs.get("date") < rhs.get("date")) {
                 return -1;

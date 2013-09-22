@@ -3,7 +3,9 @@
  *
  * Requires underscore and underscore utils.
  */
-
+if (typeof require !== "undefined") {
+    _ = require("underscore");
+}
 var DatastoreUtil = (function(){
     var ret = {};
 
@@ -24,10 +26,34 @@ var DatastoreUtil = (function(){
      * @param recordId {Array[String]}
      * @returns {Array} No nulls.
      */
-    function bulkGet(table, recordIds) {
+    ret.bulkGet = function(table, recordIds) {
         return __.nonNull(_.map(recordIds, function(recordId){
             return table.get(recordId);
         }));
+    }
+
+    /**
+     * A brute force range query. Right now inclusive...
+     * @param table
+     * @param field
+     * @param lower
+     * @param upper
+     */
+    ret.rangeQuery = function(table, field, lower, upper){
+        var records = table.query({});
+        if (lower !== null && typeof lower !== "undefined") {
+            records = _.filter(records, function(record){
+                return record.get(field) >= lower;
+            });
+        }
+        if (typeof upper !== "undefined") {
+            records = _.filter(records, function(record){
+                return record.get(field) <= upper;
+            });
+        }
+        return _.sortBy(records, function(record){
+            return record.get(field);
+        });
     }
 
     /**
@@ -37,7 +63,7 @@ var DatastoreUtil = (function(){
      * @returns {Array}. The field values for these records. Will be
      *      null for records that don't have the field.
      */
-    function getFieldValues(records, field){
+    ret.getFieldValues = function(records, field){
         return _.map(records, function(record){
             return record.get(field);
         });
@@ -49,15 +75,49 @@ var DatastoreUtil = (function(){
      * @param record {Datastore.Record}. Record with data to extract.
      * @returns {Object}. Record data plus its id as "id" field.
      */
-    function getFieldsWithId(record){
+    ret.getFieldValuesWithId = function(record){
         var ret = record.getFields();
         ret.id = record.getId();
         return ret;
     }
 
-    // build the actual object here
-    ret.bulkGet = bulkGet;
-    ret.getFieldValues = getFieldValues;
-    ret.getFieldValuesWithId = getFieldsWithId;
+    /**
+     * A function which will wait a maximum number of times for the datastore to finish syncing.
+     * @param datastore
+     *      datastore to wait on
+     * @param poll
+     *      amt of time to wait between checking sync status (ms)
+     * @param maxPoll
+     *      maximum number of times to poll
+     * @param callback
+     *      should be an operation on the datastore.
+     */
+    ret.syncDatastore = (function(){
+        // default values
+        var defaultPoll = 1000, defaultMaxPolls = 10;
+
+        var pollCount = 0;
+
+        // Actual returned method here
+        var waitForSyncHelper = function(datastore, callback, poll, maxPoll) {
+            callback = typeof callback !== "undefined" ? callback : function(){ return; };
+            poll = typeof poll !== "undefined" ? poll : defaultPoll;
+            maxPoll = typeof maxPoll !== "undefined" ? maxPoll : defaultMaxPolls;
+            if (datastore.getSyncStatus().uploading && pollCount < maxPoll) {
+                console.log("datastore " + datastore.getId() + " uploading: " + datastore.getSyncStatus().uploading);
+                pollCount += 1;
+                setTimeout(waitForSyncHelper, poll, datastore, callback, poll, maxPoll);
+            } else {
+                console.log("datastore " + datastore.getId() + " uploading: " + datastore.getSyncStatus().uploading);
+                callback(datastore);
+            }
+        };
+        return waitForSyncHelper;
+    }());
+
     return ret;
 })();
+
+if (typeof exports !== "undefined") {
+    exports.DatastoreUtil = DatastoreUtil;
+}

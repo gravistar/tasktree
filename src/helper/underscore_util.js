@@ -19,3 +19,7 @@ var __ = (function(){
     ret.nonNull = nonNull;
     return ret;
 })();
+
+if (typeof exports !== "undefined") {
+    exports.__ = __;
+}

@@ -3,8 +3,8 @@
  *
  * Requires underscore and underscore utils.
  */
-if (typeof require !== "undefined") {
-    _ = require("underscore");
+if (typeof _ === "undefined" && typeof require !== "undefined") {
+    _ = require("../lib/underscore.js");
 }
 var DatastoreUtil = (function(){
     var ret = {};

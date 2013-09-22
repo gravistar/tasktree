@@ -139,7 +139,7 @@ $(function (){
      * Adds all the UI listeners
      * @param $root
      */
-    function addButtonListeners($root) {
+    function addTaskMutationListeners($root) {
         var $taskForm = $root.find(".taskForm").first();
 
         var id = $root.attr("id");
@@ -173,7 +173,7 @@ $(function (){
         });
 
         // task add
-        $taskForm.find("button.taskAdd").click(taskAddCb);
+        $taskForm.find("button.taskAdd").first().click(taskAddCb);
 
         // toggle duration
         $root.find("button.showDuration").first().click(function (e){
@@ -191,9 +191,7 @@ $(function (){
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////////////////////////////////////////////////////////////
     /// RECORD MUTATING FUNCTIONS
-    //////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////
     /**
      * Invoked when task form for adding a global task is submitted.
@@ -213,7 +211,7 @@ $(function (){
         console.log("task add cb invoked");
         e.preventDefault();
         var $this = $(this),
-            $parentTask = $this.closest(".task"),
+            $parentTask = $this.closest(".task").first(),
             $parent = $this.parent();
         var created = createTaskFromForm($parent, $parentTask.attr("id"));
         updateCompletionAncestors(created, null);
@@ -373,9 +371,7 @@ $(function (){
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////////////////////////////////////////////////////////////
     /// RENDERING FUNCTIONS
-    //////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////
 
     /**
@@ -393,12 +389,12 @@ $(function (){
         // attach the task form and hide
         var $taskForm = ich.taskForm();
         $taskForm.hide();
-        $task.append($taskForm);
+        $task.find(".taskForm").first().replaceWith($taskForm);
 
         // render the children and attach
         renderSubtasks(task, $task);
         renderTaskState(task, $task);
-        addButtonListeners($task);
+        addTaskMutationListeners($task);
         return $task;
     }
 
@@ -473,11 +469,13 @@ $(function (){
         var $prev = $parent.find("#" + task.getId());
         var $subtaskList;
         if ($prev.length === 0) {
+            console.log("task: " + task.get("desc") + " added");
             // new task added. really this is only needed for roots...
             // renderTask takes care of the rest.
             $subtaskList = $parent.find(".subtasks").first();
             $subtaskList.prepend($task);
         } else {
+            console.log("task: " + task.get("desc") + " updated");
             // task updated
             $prev.replaceWith($task);
         }
@@ -555,10 +553,10 @@ $(function (){
 
         var archiveEntrys = archiveTable.query();
         archiveEntrys.sort(function(lhs, rhs){
-            if (lhs.get("date") < rhs.get("date")) {
+            if (lhs.get("date") > rhs.get("date")) {
                 return -1;
             }
-            if (lhs.get("date") > rhs.get("date")) {
+            if (lhs.get("date") < rhs.get("date")) {
                 return 1;
             }
             return 0;

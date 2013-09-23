@@ -129,32 +129,33 @@
         </ul>
     </div>
 
-    <ul class="nav navTabs" id="tabs">
+    <ul id="menuTabs" class="nav navTabs">
         <li class="active">
-            <a href="#main" data-toggle="tab">Task Tree</a>
+            <a href="#main">Task Tree</a>
         </li>
         <li>
-            <a href="#archive" data-toggle="tab">Archive</a>
+            <a href="#archive">Archive</a>
         </li>
     </ul>
+    <div id="tabContent" class="tab-content">
+        <div id="main" style="display: none;" class="tab-pane active">
+            <div id="globalCreateTask">
+                <button id="globalCreateTaskButton">+Global Task</button>
+            </div>
 
-    <div id="main" style="display: none;" class="active">
-        <div id="globalCreateTask">
-            <button id="globalCreateTaskButton">+Global Task</button>
+            <div id="globalArchiveCompleted">
+                <button id="globalArchiveCompletedButton">Archive Completed</button>
+            </div>
+
+            <!-- task tree is here -->
+            <ul class="subtasks">
+            </ul>
         </div>
-
-        <div id="globalArchiveCompleted">
-            <button id="globalArchiveCompletedButton">Archive Completed</button>
+        <div id="archive" class="tab-pane">
+            <span>Archive</span>
+            <ul id="archiveList">
+            </ul>
         </div>
-
-        <!-- task tree is here -->
-        <ul class="subtasks">
-        </ul>
-    </div>
-    <div id="archive">
-        <span>Archive</span>
-        <ul id="archiveList">
-        </ul>
     </div>
 
     <div id="login">

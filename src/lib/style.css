@@ -67,3 +67,18 @@ div#sidebar {
     padding: 15px 0 30px 30px;
     border-right: 1px solid #bbb;
 }
+#menuTabs {
+    position: fixed;
+    top: 0;
+    left: 231px;
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    border-bottom: 1px solid #bbb;
+}
+#tabContent{
+    position: absolute;
+    top: 100px;
+    left: 231px;
+    overflow-y: scroll;
+}

@@ -61,12 +61,7 @@ $(function (){
 
     // UI Listener setup
     function setupTabs(){
-        $("#main a").click(function(e){
-            e.preventDefault();
-            $(this).tab("show");
-        });
-
-        $("#archive a").click(function(e){
+        $(".navTabs li a").click(function(e){
             e.preventDefault();
             $(this).tab("show");
         });
@@ -148,7 +143,7 @@ $(function (){
         // delete callback (records changed listener)
         $root.find("button.taskDel").first().click(function(e){
             e.preventDefault();
-            taskDelete(task);
+            subtreeTaskDelete(task);
         });
 
         // toggle task form
@@ -229,20 +224,28 @@ $(function (){
         return TreeUtil.createTreeRecord(TaskTree.buildTask(parentId, desc, 0.0, false, false),
             taskTable, taskTable, TaskTree.CHILD_LIST_FIELD);
     }
+
+    /**
+     * Cleanup that happens on a single task record when it or one of its parents gets
+     * deleted.
+     * @param task
+     */
+    function singleTaskDelete(task){
+        if (TaskTree.completed(task) && TaskTree.archived(task)){
+            unarchiveTask(task);
+        }
+        TreeUtil.deleteTreeRecord(task, taskTable, TaskTree.CHILD_LIST_FIELD);
+    }
+
     /**
      * Takes care of all the bookkeeping when a task gets deleted.  Need to do this
      * because we can't get the fields of deleted records.
      * @param task
      */
-    function taskDelete(task){
-        // if completed and archived, remove it from archive
-        if (TaskTree.completed(task) && TaskTree.archived(task)){
-            unarchiveTask(task);
-        }
-
+    function subtreeTaskDelete(task){
         updateCompletionAncestors(task, true);
         TreeUtil.onTreeBottomUp(task, taskTable, function(task){
-            TreeUtil.deleteTreeRecord(task, taskTable, TaskTree.CHILD_LIST_FIELD);
+           singleTaskDelete(task);
         }, TaskTree.CHILD_LIST_FIELD);
     }
 
@@ -526,9 +529,7 @@ $(function (){
         var taskIds = archiveEntry.get("tasks").toArray();
         var tasks = DatastoreUtil.bulkGet(taskTable, taskIds);
         _.each(tasks, function(task){
-            var taskData = taskRenderData(task);
-            var $task = ich.archivedTask(taskData);
-            $taskList.append($task);
+            $taskList.append(renderArchivedTask(task));
         });
         $archiveEntry.append($taskList);
         renderArchiveEntryState(archiveEntry, $archiveEntry);
@@ -538,6 +539,23 @@ $(function (){
     function renderArchiveEntryState(archiveEntry, $archiveEntry){
         if (!TaskTree.expanded(archiveEntry)){
             $archiveEntry.find(".tasks").first().hide();
+        }
+    }
+
+    function renderArchivedTask(task){
+        var taskData = taskRenderData(task);
+        var $task = ich.archivedTask(taskData);
+        renderArchivedTaskState(task, $task);
+        return $task;
+    }
+
+    function renderArchivedTaskState(task, $task){
+        var parent;
+        if (!TreeUtil.isRoot(task)){
+            parent = taskTable.get(task.get(TreeUtil.PARENT_ID_FIELD));
+            if (TaskTree.archived(parent)) {
+                $task.find("button.unarchive").first().hide();
+            }
         }
     }
 
@@ -591,7 +609,7 @@ $(function (){
         $archiveEntry.find("button.taskDel").click(function(e){
             e.preventDefault();
             var task = getArchivedTaskFromButton($(this), prefixLen);
-            taskDelete(task);
+            subtreeTaskDelete(task);
         });
     }
 

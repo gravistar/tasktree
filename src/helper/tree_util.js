@@ -367,6 +367,15 @@ var TreeUtil = (function(){
         return TreeUtil.onTree(root, table, callback, childListField, true);
     }
 
+    /**
+     * Returns true if root. False otherwise.
+     * @param record
+     * @returns {boolean}
+     */
+    TreeUtil.isRoot = function(record){
+        return record.get(PARENT_ID_FIELD) === NO_PARENT;
+    }
+
     return TreeUtil;
 })();
 

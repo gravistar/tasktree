@@ -25,8 +25,10 @@ var TaskTree = (function() {
      * @param createTime {Date}. Date of creation.
      * @param subtaskIds {Array[String]}. Ids of
      * @param queued {boolean}. True if this task is queued in the todo queue. May remove this.
+     * @param listId {String}.  Id of the list record that this task belongs to. null if it does not
+     *      belong to any list.
      */
-    ret.buildTask = function(parentId, desc, weight, expanded, queued){
+    ret.buildTask = function(parentId, desc, weight, expanded, queued, listId){
         var ret = {
             parentId: parentId,
             desc: desc,
@@ -35,6 +37,9 @@ var TaskTree = (function() {
             createTime: new Date(),
             queued: queued
         };
+        if (listId !== null) {
+            ret.listId = listId;
+        }
         ret[CHILD_LIST_FIELD] = [];
         return ret;
     };
@@ -48,6 +53,22 @@ var TaskTree = (function() {
         var ret = {
             date : date,
             tasks : []
+        };
+        return ret;
+    }
+
+    /**
+     * Builds a new list record.
+     * @param name. {String}. Name of the list.
+     * @param createTime. {Date}. Date of creation.
+     * @returns {{name: *, createTime: *, tasks: Array}}
+     *     taskIds. all of the ids of tasks that belong to this list.
+     */
+    ret.buildList = function(name, createTime){
+        var ret = {
+            name : name,
+            createTime : createTime,
+            taskIds : []
         };
         return ret;
     }

@@ -28,7 +28,7 @@
 
     <!-- task element -->
     <script id="task" type="text/html">
-        <li id={{id}} class="task" draggable="true">
+        <li id="{{id}}" class="task" draggable="true">
             <div class="taskMeta">
                 <button class="taskDel">
                     &times;
@@ -88,7 +88,7 @@
     <!-- archive entry template.
         expected to have a "tasks" list append to it-->
     <script id="archiveEntry" type="text/html">
-        <li id={{id}} class="archiveEntry">
+        <li id="{{id}}" class="archiveEntry">
             <span>{{date}}</span>
             <span>Num tasks: {{numTasks}}</span>
             <button class="showTasks">
@@ -119,13 +119,35 @@
             </button>
         </li>
     </script>
+
+    <script id="listEntry" type="text/html">
+        <li id="{{id}}" class="listEntry">
+            <span class="name">
+                {{name}}
+            </span>
+            <button class="listEntryDel">
+                &times;
+            </button>
+        </li>
+    </script>
+
 </head>
 <body>
 <div id="wrapper">
     <div id="sidebar">
         <div id="sidebarTitle">Lists</div>
-        <ul>
-            <li>All</li>
+        <form id="listAddForm">
+            <label>List Name:
+                <input type="text" name="name">
+                <button type="submit" class="listAdd">
+                    &plus;
+                </button>
+            </label>
+        </form>
+        <div id="allLists">
+            All
+        </div>
+        <ul id="listsList">
         </ul>
     </div>
 
@@ -152,7 +174,6 @@
             </ul>
         </div>
         <div id="archive" class="tab-pane">
-            <span>Archive</span>
             <ul id="archiveList">
             </ul>
         </div>

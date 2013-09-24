@@ -8,8 +8,12 @@ var DROPBOX_APP_KEY = 'nvhuh359xzvfexc';
 var client = new Dropbox.Client({key: DROPBOX_APP_KEY});
 
 $(function (){
-    var taskTable, taskTableId = "tasks", $main = $("#main");
+    var taskTable, taskTableId = "tasks", $main = $("#main"), $listsList = $("#listsList");
     var archiveTable, archiveTableId = "archive";
+    var listTable, listTableId = "lists";
+    var config, configTable, configTableId = "config"; // literally just keeps track of which list is focused
+
+    var focusedList = null;
 
     $('#loginButton').click(function(e){
         e.preventDefault();
@@ -35,6 +39,19 @@ $(function (){
 
             taskTable = datastore.getTable(taskTableId);
             archiveTable = datastore.getTable(archiveTableId);
+            listTable = datastore.getTable(listTableId);
+            configTable = datastore.getTable(configTableId);
+
+            var configs = configTable.query({});
+            // first time use. add a config object focused on All
+            if (configs.length === 0) {
+                config = configTable.insert({});
+            } else {
+                config = configs[0];
+            }
+            if (config.has("focusedListId")) {
+                focusedList = listTable.get(config.get("focusedListId"));
+            }
 
             setupTabs();
 
@@ -43,16 +60,10 @@ $(function (){
             // create archive objects for days since last
 
             // add global listeners
+            addGlobalListButtons();
             addGlobalElements();
 
-            // update the archive
-            updateArchiveList();
-
-            // render existing tasks
-            _.each(TreeUtil.allRootRecords(taskTable), rootTaskChangedCb);
-
-            // make sortable AFTER items added
-            $main.find(".subtasks").first().sortable();
+            paintTabContainer();
 
             // add records changed listeners
             addRecordsChangedListeners(datastore);
@@ -60,10 +71,91 @@ $(function (){
     }
 
     // UI Listener setup
+
+    /**
+     * Wipes the whole tab container. This happens when you switch the focused list.
+     */
+    function paintTabContainer(){
+        renderTaskForest();
+        updateArchiveList();
+        updateListsList();
+    }
+
+    /**
+     * Renders the task tree for the currently focused list
+     */
+    function renderTaskForest(){
+        console.log(focusedList);
+        $main.find(".subtasks").first().empty();
+        var rootTasks = TreeUtil.allRootRecords(taskTable);
+        var focusedRoots = _.filter(rootTasks, isFocusedTask);
+        _.each(focusedRoots, rootTaskChangedCb);
+        // make sortable AFTER items added (nested sortable?)
+        $main.find(".subtasks").first().sortable();
+    }
+
+    /**
+     * Sets up the menu tabs so they actually work.
+     */
     function setupTabs(){
         $(".navTabs li a").click(function(e){
             e.preventDefault();
             $(this).tab("show");
+        });
+    }
+
+    /**
+     * Adds the listener to the list add button.
+     */
+    function addGlobalListButtons(){
+        $("#listAddForm button").click(function(e){
+            e.preventDefault();
+            listTable.insert(createListFromForm($("#listAddForm")));
+        });
+        $("#allLists").click(function(e){
+            e.preventDefault();
+            console.log("all lists clicked!");
+            config.set("focusedListId", null);
+        });
+    }
+
+    /**
+     * Config mutators are the callbacks bound to the list objects. When they're clicked,
+     * the focused list changes.
+     */
+    function addConfigMutator($list){
+        $list.click(function (e){
+            console.log("list clicked!: " + $list.attr("id"));
+            e.preventDefault();
+            config.set("focusedListId", $list.attr("id"));
+        });
+    }
+
+    /**
+     * Updates all relevant records when deleting a list.
+     * These are the config, the tasks that belong to this list, and the list record itself.
+     * @param $listEntry
+     */
+    function addListDeleteMutator($listEntry){
+        $listEntry.find("button.listEntryDel").first().click(function(e){
+            e.stopPropagation();
+            e.preventDefault();
+            console.log("list entry del called!");
+            var listId = $(this).parent().attr("id");
+            var list = listTable.get(listId);
+
+            // delete all the tasks that belong to this list
+            var tasks = taskTable.query({listId: listId});
+            _.each(tasks, function(task){
+                singleTaskDelete(task);
+            });
+
+            // update the config so it doesn't focus on this list
+            if (focusedList !== null && focusedList.getId() === listId){
+                config.set("focusedListId", null);
+            }
+
+            list.deleteRecord();
         });
     }
 
@@ -128,13 +220,11 @@ $(function (){
 
 
     // UI Listener callbacks
-
-
     /**
-     * Adds all the UI listeners
+     * Adds all the UI listeners for tasks
      * @param $root
      */
-    function addTaskMutationListeners($root) {
+    function addTaskMutators($root) {
         var $taskForm = $root.find(".taskForm").first();
 
         var id = $root.attr("id");
@@ -213,6 +303,16 @@ $(function (){
     }
 
     /**
+     *
+     * @param $listForm
+     * @returns {{name: *, createTime: *, tasks: Array}}
+     */
+    function createListFromForm($listForm){
+        var name = $listForm.find("input[name='name']").val();
+        return TaskTree.buildList(name, new Date());
+    }
+
+    /**
      * Puts a new task in the table. Still need to figure out weighting that
      * feels natural.
      * @param $parent {Zepto element}. Zepto selector on parent div.
@@ -221,7 +321,12 @@ $(function (){
      */
     function createTaskFromForm($parent, parentId){
         var desc = $parent.find("input[name='desc']").val();
-        return TreeUtil.createTreeRecord(TaskTree.buildTask(parentId, desc, 0.0, false, false),
+        var focusedId = null;
+        if (focusedList !== null){
+            focusedId = focusedList.getId();
+        }
+        return TreeUtil.createTreeRecord(TaskTree.buildTask(parentId, desc, 0.0, false, false,
+            focusedId),
             taskTable, taskTable, TaskTree.CHILD_LIST_FIELD);
     }
 
@@ -397,7 +502,7 @@ $(function (){
         // render the children and attach
         renderSubtasks(task, $task);
         renderTaskState(task, $task);
-        addTaskMutationListeners($task);
+        addTaskMutators($task);
         return $task;
     }
 
@@ -517,6 +622,19 @@ $(function (){
     }
 
     /**
+     *
+     * @param task
+     * @returns {boolean}. True if the task belongs to focused list (or focused list is null,
+     *      which means the All list)
+     */
+    function isFocusedTask(task){
+        if (focusedList === null){
+            return true;
+        }
+        return task.get("listId") === focusedList.getId();
+    }
+
+    /**
      * Just renders an archive entry
      * @param archiveEntry
      */
@@ -526,14 +644,19 @@ $(function (){
         archiveEntryData.numTasks = archiveEntry.get("tasks").length();
         var $archiveEntry = ich.archiveEntry(archiveEntryData);
         var $taskList = $archiveEntry.find("ul.tasks").first();
-        var taskIds = archiveEntry.get("tasks").toArray();
-        var tasks = DatastoreUtil.bulkGet(taskTable, taskIds);
+        var tasks = getArchiveEntryTasks(archiveEntry);
+        tasks = _.filter(tasks, isFocusedTask);
         _.each(tasks, function(task){
             $taskList.append(renderArchivedTask(task));
         });
         $archiveEntry.append($taskList);
         renderArchiveEntryState(archiveEntry, $archiveEntry);
         return $archiveEntry;
+    }
+
+    function getArchiveEntryTasks(archiveEntry){
+        var taskIds = archiveEntry.get("tasks").toArray();
+        return DatastoreUtil.bulkGet(taskTable, taskIds);
     }
 
     function renderArchiveEntryState(archiveEntry, $archiveEntry){
@@ -569,7 +692,19 @@ $(function (){
         var $archiveList = $("#archiveList");
         $archiveList.empty();
 
-        var archiveEntrys = archiveTable.query();
+        var archiveEntrys = archiveTable.query({});
+
+        archiveEntrys = _.filter(archiveEntrys, function(archiveEntry){
+            if (focusedList === null) {
+                return true;
+            }
+            var tasks = getArchiveEntryTasks(archiveEntry);
+            tasks = _.filter(tasks, function(task){
+                return task.get("listId") === focusedList.getId();
+            });
+            return tasks.length > 0;
+        });
+
         archiveEntrys.sort(function(lhs, rhs){
             if (lhs.get("date") > rhs.get("date")) {
                 return -1;
@@ -579,6 +714,7 @@ $(function (){
             }
             return 0;
         });
+
         _.each(archiveEntrys, function(archiveEntry){
             var $archiveEntry = renderArchiveEntry(archiveEntry);
             $archiveList.append($archiveEntry);
@@ -639,6 +775,59 @@ $(function (){
     }
 
     /**
+     * Invoked when list records are mutated.
+     * @param rcEvent
+     */
+    function listAddCb(rcEvent){
+        updateListsList();
+    }
+
+    /**
+     * Just does a dumb refresh of the list.
+     */
+    function updateListsList(){
+        var listEntrys = listTable.query({});
+        $listsList.empty();
+        var $listEntrys = _.map(listEntrys, function(listEntry){
+            return renderListEntry(listEntry);
+        });
+
+        // add mutators
+        _.each($listEntrys, function($listEntry){
+            addConfigMutator($listEntry);
+            addListDeleteMutator($listEntry);
+        });
+
+        _.each($listEntrys, function($listEntry){
+            $listsList.append($listEntry);
+        });
+
+        $listsList.sortable();
+    }
+
+    /**
+     *
+     * @param listEntry
+     */
+    function renderListEntry(listEntry){
+        return ich.listEntry(DatastoreUtil.getFieldValuesWithId(listEntry));
+    }
+
+    function $tabContentMutator(rcEvent){
+        var configs = rcEvent.affectedRecordsForTable(configTable.getId());
+        if (configs.length === 0){
+            return;
+        }
+        var config = configs[0];
+        if (config.has("focusedListId")){
+            focusedList = listTable.get(config.get("focusedListId"));
+        } else {
+            focusedList = null;
+        }
+        paintTabContainer();
+    }
+
+    /**
      * adds records changed listeners to datastore.
      * @param datastore {Datastore}
      */
@@ -650,6 +839,8 @@ $(function (){
         datastore.recordsChanged.addListener(rcChildCb);
         datastore.recordsChanged.addListener(rcDelCb);
         datastore.recordsChanged.addListener(archiveCb);
+        datastore.recordsChanged.addListener(listAddCb);
+        datastore.recordsChanged.addListener($tabContentMutator);
     }
 
 });

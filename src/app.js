@@ -45,7 +45,7 @@ $(function (){
             var configs = configTable.query({});
             // first time use. add a config object focused on All
             if (configs.length === 0) {
-                config = configTable.insert({});
+                config = configTable.insert(TaskTree.buildConfig());
             } else {
                 config = configs[0];
             }
@@ -79,6 +79,7 @@ $(function (){
         renderTaskForest();
         updateArchiveList();
         updateListsList();
+        buildHistogram(getDurationData());
     }
 
     /**
@@ -825,6 +826,98 @@ $(function (){
             focusedList = null;
         }
         paintTabContainer();
+    }
+
+    /**
+     * Returns the task durations of completed tasks belonging to focused list.
+     * @returns {*}
+     */
+    function getDurationData(){
+        var queryParam = { completed: true};
+        if (focusedList !== null){
+            queryParam.listId = focusedList.getId();
+        }
+        var focusedCompletedTasks = taskTable.query(queryParam);
+        printFocusedList();
+        console.log("# focused completed: " + focusedCompletedTasks.length);
+        return _.map(focusedCompletedTasks, function(focusedCompletedTask){
+            return focusedCompletedTask.get("completeTime") - focusedCompletedTask.get("createTime");
+        });
+    }
+
+    function printFocusedList() {
+        if (focusedList !== null) {
+            console.log("focused list: " + focusedList.get("name"));
+        } else {
+            console.log("focused list: all");
+        }
+    }
+
+    /**
+     * Builds a histogram. lifted from http://bl.ocks.org/mbostock/3048166
+     * @param values
+     */
+    function buildHistogram(values){
+        var margin = {top: 10, right: 30, bottom: 30, left: 30};
+        var width = 500;
+        var height = 500;
+
+        var $histogram = $("#histogram")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom);
+        $("#histogram").empty();
+        if (values.length < 2) {
+            $histogram.text("Not enough tasks completed to plot histogram!");
+            return;
+        }
+        // if there is no data, then what?
+        var formatCount = d3.format(",.0f");
+        var formatDuration = function(d) {return jsUtil.humanReadableShort(d);};
+
+        var x = d3.scale.linear()
+            .domain([_.min(values), _.max(values)])
+            .range([0,width]);
+
+        var data = d3.layout.histogram()
+            .bins(x.ticks(20))
+            (values);
+
+        var y = d3.scale.linear()
+            .domain([0, d3.max(data, function(d) { return d.y; })])
+            .range([height,0]);
+
+        var xAxis = d3.svg.axis()
+            .scale(x)
+            .orient("bottom")
+            .tickFormat(formatDuration);
+
+        var container = d3.select("#histogram")
+            .append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+        var bar = container.selectAll(".bar")
+            .data(data)
+            .enter().append("g")
+            .attr("class", "bar")
+            .attr("transform", function(d) { return "translate(" + x(d.x) + "," + y(d.y) + ")"});
+
+        bar.append("rect")
+            .attr("x", 1)
+            .attr("width", x(data[0].dx) - 1)
+            .attr("height", function(d) { return height - y(d.y); });
+
+        bar.append("text")
+            .attr("dy", ".75em")
+            .attr("y", 6)
+            .attr("x", x(data[0].dx) / 2)
+            .attr("text-anchor", "middle")
+            .text(function(d) { return formatCount(d.y); });
+
+        container.append("g")
+            .attr("class", "x axis")
+            .attr("transform", "translate(0," + height + ")")
+            .call(xAxis);
+
     }
 
     /**

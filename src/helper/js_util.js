@@ -16,12 +16,32 @@ var jsUtil = (function() {
      * @returns {string} Human readable format of this time period.
      */
     jsUtil.humanReadable = function(timeMs) {
+        var duration = convertMsDuration(timeMs);
+        return duration.days + " days, " +
+            duration.hours + " hours, " + duration.minutes + " minutes";
+    }
+
+    jsUtil.humanReadableShort = function(timeMs){
+        var duration = convertMsDuration(timeMs);
+        return duration.days + ":" + duration.hours + ":" + duration.minutes;
+    }
+
+    /**
+     * Converts a duration in ms to a human readable object
+     * @param timeMs
+     * @returns {{minutes: number, hours: number, days: number}}
+     */
+    var convertMsDuration = jsUtil.convertMsDuration = function(timeMs) {
         var days, hours, minutes, tmp = Math.floor((timeMs/1000)/60);
         minutes = tmp % 60;
         tmp = Math.floor(tmp / 60);
         hours = tmp % 24;
         days = Math.floor(tmp / 24);
-        return days + " days, " + hours + " hours, " + minutes + " minutes";
+        return {
+            minutes : minutes,
+            hours : hours,
+            days : days
+        };
     }
 
     /**

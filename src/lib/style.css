@@ -78,7 +78,26 @@ div#sidebar {
 }
 #tabContent{
     position: absolute;
-    top: 100px;
+    top: 150px;
     left: 231px;
     overflow-y: scroll;
+}
+
+body {
+    font: 10px sans-serif;
+}
+
+.bar rect {
+    fill: steelblue;
+    shape-rendering: crispEdges;
+}
+
+.bar text {
+    fill: #fff;
+}
+
+.axis path, .axis line {
+    fill: none;
+    stroke: #000;
+    shape-rendering: crispEdges;
 }

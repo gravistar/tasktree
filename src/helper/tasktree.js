@@ -17,6 +17,20 @@ var TaskTree = (function() {
     ret.CHILD_LIST_FIELD = CHILD_LIST_FIELD;
 
     /**
+     * Builds a fresh config record.  Config record currently has focusedListId field and queue field.
+     *  focusedListId keeps track of focusedList. Is null if all lists should be displayed.
+     *  queue is a list of queued is. order of ids in the queue is the order that they will be rendered in,
+     *      so order matters.
+     * @returns {{queue: Array}}
+     */
+    ret.buildConfig = function(){
+        var ret = {
+            queue : []
+        };
+        return ret;
+    };
+
+    /**
      * Builds a fresh task object with some defaults.
      * @param parentId {String}. Id of parent record. NO_PARENT if root.
      * @param desc {String}. Description of the task. All info here.

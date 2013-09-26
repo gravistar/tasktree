@@ -79,7 +79,16 @@ $(function (){
         renderTaskForest();
         updateArchiveList();
         updateListsList();
-        buildHistogram(getDurationData());
+        var logDurationData = _.map(getDurationData(), function(durationMs){
+            return Math.log(durationMs);
+        });
+        console.log("log duration data: " + logDurationData);
+        var formatLogDuration = function(logD) {
+            // input will actually be log of duration in ms
+            var d = Math.floor(Math.exp(logD));
+            return jsUtil.humanReadableShort(d);
+        };
+        buildHistogram(logDurationData, formatLogDuration);
     }
 
     /**
@@ -857,7 +866,7 @@ $(function (){
      * Builds a histogram. lifted from http://bl.ocks.org/mbostock/3048166
      * @param values
      */
-    function buildHistogram(values){
+    function buildHistogram(values, xformat){
         var margin = {top: 10, right: 30, bottom: 30, left: 30};
         var width = 500;
         var height = 500;
@@ -870,16 +879,15 @@ $(function (){
             $histogram.text("Not enough tasks completed to plot histogram!");
             return;
         }
-        // if there is no data, then what?
+
         var formatCount = d3.format(",.0f");
-        var formatDuration = function(d) {return jsUtil.humanReadableShort(d);};
 
         var x = d3.scale.linear()
             .domain([_.min(values), _.max(values)])
             .range([0,width]);
 
         var data = d3.layout.histogram()
-            .bins(x.ticks(20))
+            .bins(x.ticks(15))
             (values);
 
         var y = d3.scale.linear()
@@ -889,7 +897,7 @@ $(function (){
         var xAxis = d3.svg.axis()
             .scale(x)
             .orient("bottom")
-            .tickFormat(formatDuration);
+            .tickFormat(xformat);
 
         var container = d3.select("#histogram")
             .append("g")
@@ -903,13 +911,13 @@ $(function (){
 
         bar.append("rect")
             .attr("x", 1)
-            .attr("width", x(data[0].dx) - 1)
+            .attr("width", x(_.min(values) + data[0].dx))
             .attr("height", function(d) { return height - y(d.y); });
 
         bar.append("text")
             .attr("dy", ".75em")
             .attr("y", 6)
-            .attr("x", x(data[0].dx) / 2)
+            .attr("x", x(_.min(values) + data[0].dx) / 2)
             .attr("text-anchor", "middle")
             .text(function(d) { return formatCount(d.y); });
 

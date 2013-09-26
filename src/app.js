@@ -118,7 +118,7 @@ $(function (){
      * Adds the listener to the list add button.
      */
     function addGlobalListButtons(){
-        $("#listAddForm button").click(function(e){
+        $("#listFormWrapper .listAdd").first().click(function(e){
             e.preventDefault();
             listTable.insert(createListFromForm($("#listAddForm")));
         });
@@ -151,7 +151,7 @@ $(function (){
             e.stopPropagation();
             e.preventDefault();
             console.log("list entry del called!");
-            var listId = $(this).parent().attr("id");
+            var listId = $(this).closest(".listEntry").first().attr("id");
             var list = listTable.get(listId);
 
             // delete all the tasks that belong to this list
@@ -173,23 +173,25 @@ $(function (){
      * Sets up the button and form which allows adding a global task
      */
     function addGlobalElements(){
+        var $globalTaskButtons = $("#globalTaskButtons");
         var $globalCreateTask = $("#globalCreateTask");
-        $globalCreateTask.append(ich.taskForm());
-        $globalCreateTask.find(".taskForm").hide();
+        var $taskFormWrapper = ich.taskForm();
+        $globalTaskButtons.append($taskFormWrapper);
+        $taskFormWrapper.hide();
 
         // button toggles the form
         $globalCreateTask.find("button").click(function (e){
             e.preventDefault();
-            $globalCreateTask.find(".taskForm").toggle();
+            $taskFormWrapper.toggle();
         });
 
         // have the add button use the global create
-        $globalCreateTask.find(".taskAdd").click(globalTaskAddCb);
+        $taskFormWrapper.find(".taskAdd").click(globalTaskAddCb);
 
         $("#globalArchiveCompleted").find("button").click(function (e){
             e.preventDefault();
             archiveCompleted();
-        })
+        });
     }
 
     // Archive methods
@@ -235,7 +237,7 @@ $(function (){
      * @param $root
      */
     function addTaskMutators($root) {
-        var $taskForm = $root.find(".taskForm").first();
+        var $taskForm = $root.find(".taskFormWrapper").first();
 
         var id = $root.attr("id");
         var task = taskTable.get(id);
@@ -294,8 +296,9 @@ $(function (){
      */
     function globalTaskAddCb(e){
         e.preventDefault();
-        var $parent = $(this).closest(".taskForm");
+        var $parent = $(this).closest(".taskFormWrapper");
         createTaskFromForm($parent, TreeUtil.NO_PARENT);
+        $parent.hide();
     }
 
     /**
@@ -307,7 +310,7 @@ $(function (){
         e.preventDefault();
         var $this = $(this),
             $parentTask = $this.closest(".task").first(),
-            $parent = $this.parent();
+            $parent = $this.closest(".taskFormWrapper").first();
         var created = createTaskFromForm($parent, $parentTask.attr("id"));
         updateCompletionAncestors(created, null);
     }
@@ -330,7 +333,9 @@ $(function (){
      * @returns {Datastore.Record}. The created task.
      */
     function createTaskFromForm($parent, parentId){
-        var desc = $parent.find("input[name='desc']").val();
+        console.log("parent class: " + $parent.attr('class'));
+        var desc = $parent.find("input[name='desc']").first().val();
+        console.log("creating task with desc: " + desc);
         var focusedId = null;
         if (focusedList !== null){
             focusedId = focusedList.getId();
@@ -507,7 +512,7 @@ $(function (){
         // attach the task form and hide
         var $taskForm = ich.taskForm();
         $taskForm.hide();
-        $task.find(".taskForm").first().replaceWith($taskForm);
+        $task.find(".taskFormWrapper").first().replaceWith($taskForm);
 
         // render the children and attach
         renderSubtasks(task, $task);
@@ -531,8 +536,8 @@ $(function (){
             $task.addClass("completed");
         }
 
-        if (!TaskTree.showDuration(task)){
-            $task.find(".duration").first().hide();
+        if (TreeUtil.isLeaf(task, TaskTree.CHILD_LIST_FIELD)){
+            $task.find(".showSubtasks").first().hide();
         }
 
         if (!TaskTree.expanded(task)){

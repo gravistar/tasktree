@@ -1,5 +1,5 @@
 html, body { font-size: 24px; font-family: Arial; color: #666; }
-ul > li {
+ul > li .task{
     margin-left: 50px;
 }
 ul { list-style: none; margin: 0; padding: 0; }
@@ -7,16 +7,7 @@ li {
     padding: 10px 0;
     cursor: pointer;
 }
-.taskMeta {
-    border: 1px solid #ccc;
-}
-.taskForm {
-    margin-left: 50px;
-    border: 1px solid #ccc;
-}
 li span.text { display: inline-block; vertical-align: middle; }
-span.completed { text-decoration: line-through; color: #bbb; }
-.completed span { text-decoration: line-through; color: #bbb; }
 button {
     margin: 0px 10px;
     background-color: #f0f0f0;
@@ -87,6 +78,160 @@ body {
     font: 10px sans-serif;
 }
 
+
+/* Begin General Styling */
+#tabContent {
+    width:  100%;
+    margin-left: 50px;
+}
+
+.leftButtons {
+    float: left;
+    margin-top: 20px;
+    margin-left: 5px;
+    margin-right: 15px;
+}
+
+.rightButtons {
+    float: right;
+    margin-top: 16px;
+}
+
+.desc {
+    font-size: 18px;
+}
+
+.meta{
+    font-size: 12px;
+    padding-left: 10px;
+}
+/* End General Styling */
+
+/* Begin Task Tree Styling */
+.task {
+    width: 500px;
+}
+.taskMeta {
+    border: 1px solid #ccc;
+}
+.taskInfo {
+    float: none;
+    display: inline-block;
+}
+
+.taskInfo .desc{
+    padding-top: 10px;
+}
+
+.taskFormWrapper {
+    width: 500px;
+    height: 80px;
+    margin-left: 50px;
+    border: 1px solid #ccc;
+}
+
+.taskFormInputWrapper{
+    float: left;
+}
+
+.completed label {
+    text-decoration: line-through;
+    color: #bbb;
+}
+
+#globalTaskButtons {
+    width: 500px;
+    height: 140px;
+}
+
+#globalTaskButtons .taskFormWrapper{
+    float: right;
+}
+
+#globalCreateTask {
+    float: left;
+}
+
+#globalArchiveCompleted {
+    float: right;
+}
+
+/* End Task Tree Styling */
+
+/* Begin Archive Styling */
+.archiveEntry {
+    width: 500px;
+}
+
+.archiveEntryHeader {
+    border: 2px solid #ccc;
+}
+
+.archiveEntryHeader .info{
+    float: none;
+    display: inline-block;
+}
+
+.archiveEntry .rightButtons {
+    margin-top: 5px;
+}
+
+.archivedTask {
+    border: 1px solid #ccc;
+}
+
+.archivedTask .info{
+    display: inline-block;
+}
+/* End Archive Styling */
+
+/* Begin List Styling */
+#sidebarTitle {
+    font-size: 24px;
+}
+
+.listEntry {
+    border: 1px solid #ccc;
+}
+
+#listFormWrapper{
+    border: 1px solid #ccc;
+    height: 80px;
+    margin-bottom: 20px;
+    margin-top: 5px;
+}
+
+#listFormInputWrapper{
+    float: left;
+    display: inline-block;
+    width: 60%;
+    height: 80px;
+}
+
+#listFormWrapper input{
+    width: 60%;
+}
+
+#allLists {
+    border: 1px solid #ccc;
+    height: 42px;
+}
+
+.listEntry {
+    height: 42px;
+}
+
+.listEntry .info{
+    display: inline-block;
+}
+
+.listEntry .rightButtons{
+    margin-top: 5px;
+}
+
+/* End List Styling */
+
+/* Begin Histogram Styling */
 .bar rect {
     fill: steelblue;
     shape-rendering: crispEdges;
@@ -95,9 +240,9 @@ body {
 .bar text {
     fill: #fff;
 }
-
 .axis path, .axis line {
     fill: none;
     stroke: #000;
     shape-rendering: crispEdges;
 }
+/* End Histogram Styling */

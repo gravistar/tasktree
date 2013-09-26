@@ -31,70 +31,61 @@
     <script id="task" type="text/html">
         <li id="{{id}}" class="task" draggable="true">
             <div class="taskMeta">
-                <button class="taskDel">
-                    &times;
-                </button>
-                <button class="showTaskForm">
-                    &plus;
-                </button>
-                <!-- Not sure how to do this
-                <button class="showWeights">
-                    W
-                </button>
-                -->
-                <button class="showCompletion">
-                    %
-                </button>
-                <button class="showDuration">
-                    &#x231b;
-                </button>
-                <button class="showSubtasks">
-                    >
-                </button>
-                <label class="completeBox">
-                    Completed:
-                    <input type="checkbox" name="targetCompleted">
-                </label>
-                <span class="desc">
-                    Desc: {{desc}}
-                    <br>
-                </span>
-                <span class="completion">
-                    Subtask completion: {{percent}} %
-                    <br>
-                </span>
-                <span class="duration">
-                    {{durationStr}}
-                </span>
+                <div class="leftButtons">
+                    <label class="completeBox">
+                        <input type="checkbox" name="targetCompleted">
+                    </label>
+                </div>
+                <div class="taskInfo">
+                    <label class="desc">
+                        {{desc}}
+                    </label>
+                    <label class="completion meta">
+                        Subtask completion: {{percent}} %
+                    </label>
+                    <label class="duration meta">
+                        {{durationStr}}
+                    </label>
+                </div>
+                <div class="rightButtons">
+                    <button class="showTaskForm">&plus;</button>
+                    <button class="showSubtasks">></button>
+                </div>
             </div>
-            <form class="taskForm">
+            <div class="taskFormWrapper">
                 <!-- gets replaced during rendering -->
-            </form>
+            </div>
             <ul class="subtasks">
             </ul>
         </li>
     </script>
 
     <script id="taskForm" type="text/html">
-        <form class="taskForm">
-            <label>Description:
-                <input type="text" name="desc">
-                <button type="submit" class="taskAdd">
-                    &plus;
-                </button>
-            </label>
-        </form>
+        <div class="taskFormWrapper">
+            <div class="taskFormInputWrapper">
+                <form class="taskFormInput">
+                    <label>Task Description:
+                        <input type="text" name="desc">
+                    </label>
+                </form>
+            </div>
+            <div class="rightButtons">
+                <button type="submit" class="taskAdd">&plus;</button>
+            </div>
+        </div>
     </script>
 
     <!-- archive entry template.
         expected to have a "tasks" list append to it-->
     <script id="archiveEntry" type="text/html">
         <li id="{{id}}" class="archiveEntry">
-            <span>{{date}}</span>
-            <span>Num tasks: {{numTasks}}</span>
-            <button class="showTasks">
-                >
-            </button>
+            <div class="archiveEntryHeader">
+                <div class="info">
+                    <label>{{date}}</label>
+                    <label>Num tasks: {{numTasks}}</label>
+                </div>
+                <div class="rightButtons"><button class="showTasks">></button></div>
+            </div>
             <ul class="tasks">
             </ul>
         </li>
@@ -105,30 +96,32 @@
          no subtasks list. -->
     <script id="archivedTask" type="text/html">
         <li id="archived-{{id}}" class="completed archivedTask">
-            <span class="desc">
-                Desc: {{desc}}
-                <br>
-            </span>
-            <span class="duration">
-                {{durationStr}}
-            </span>
-            <button class="unarchive">
-                U
-            </button>
-            <button class="taskDel">
-                &times;
-            </button>
+            <div class="info">
+                <label class="desc">
+                    {{desc}}
+                </label>
+                <label class="duration meta">
+                    {{durationStr}}
+                </label>
+            </div>
+            <div class="rightButtons">
+                <button class="unarchive">Unarchive</button>
+            </div>
         </li>
     </script>
 
     <script id="listEntry" type="text/html">
         <li id="{{id}}" class="listEntry">
-            <span class="name">
-                {{name}}
-            </span>
-            <button class="listEntryDel">
-                &times;
-            </button>
+            <div class="info">
+                <span class="name">
+                    {{name}}
+                </span>
+            </div>
+            <div class="rightButtons">
+                <button class="listEntryDel">
+                    &times;
+                </button>
+            </div>
         </li>
     </script>
 
@@ -147,7 +140,6 @@
             <button class="dequeue">
                 D
             </button>
-
         </li>
     </script>
 
@@ -156,14 +148,18 @@
 <div id="wrapper">
     <div id="sidebar">
         <div id="sidebarTitle">Lists</div>
-        <form id="listAddForm">
-            <label>List Name:
-                <input type="text" name="name">
-                <button type="submit" class="listAdd">
-                    &plus;
-                </button>
-            </label>
-        </form>
+        <div id="listFormWrapper">
+            <div id="listFormInputWrapper">
+                <form id="listAddForm">
+                    <label>List Name:
+                        <input type="text" name="name">
+                    </label>
+                </form>
+            </div>
+            <div class="rightButtons">
+                    <button type="submit" class="listAdd">&plus;</button>
+            </div>
+        </div>
         <div id="allLists">
             All
         </div>
@@ -184,12 +180,13 @@
     </ul>
     <div id="tabContent" class="tab-content">
         <div id="main" style="display: none;" class="tab-pane active">
-            <div id="globalCreateTask">
-                <button id="globalCreateTaskButton">+Global Task</button>
-            </div>
-
-            <div id="globalArchiveCompleted">
-                <button id="globalArchiveCompletedButton">Archive Completed</button>
+            <div id="globalTaskButtons">
+                <div id="globalCreateTask">
+                    <button id="globalCreateTaskButton">+Global Task</button>
+                </div>
+                <div id="globalArchiveCompleted">
+                    <button id="globalArchiveCompletedButton">Archive Completed</button>
+                </div>
             </div>
 
             <!-- task tree is here -->

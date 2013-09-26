@@ -376,6 +376,10 @@ var TreeUtil = (function(){
         return record.get(PARENT_ID_FIELD) === NO_PARENT;
     }
 
+    TreeUtil.isLeaf = function(record, childListField){
+        return record.get(childListField).length() === 0;
+    }
+
     return TreeUtil;
 })();
 

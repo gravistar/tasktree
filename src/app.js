@@ -8,12 +8,13 @@ var DROPBOX_APP_KEY = 'nvhuh359xzvfexc';
 var client = new Dropbox.Client({key: DROPBOX_APP_KEY});
 
 $(function (){
-    var taskTable, taskTableId = "tasks", $main = $("#main"), $listsList = $("#listsList");
+    var taskTable, taskTableId = "tasks", $main = $("#main"), $listsList = $("#listsList"), $app=$("#app");
     var archiveTable, archiveTableId = "archive";
     var listTable, listTableId = "lists";
     var config, configTable, configTableId = "config"; // literally just keeps track of which list is focused
 
     var focusedList = null;
+    $app.hide();
 
     $('#loginButton').click(function(e){
         e.preventDefault();
@@ -29,7 +30,7 @@ $(function (){
 
     if (client.isAuthenticated()) {
         $("#loginButton").hide();
-        $main.show();
+        $app.show();
 
         client.getDatastoreManager().openDefaultDatastore(function (error, datastore){
 

@@ -22,6 +22,13 @@ button {
     -ms-border-radius: 8px;
     cursor: pointer;
 }
+button[disabled=disabled]{
+    color: #d1d1d1;
+    background-color: #f0f0f0;
+}
+button[disabled=disabled]:hover{
+    background-color: #f0f0f0;
+}
 button.checkbox {
     border: none;
     font-size: 18px;
@@ -67,17 +74,50 @@ div#sidebar {
     overflow-y: visible;
     border-bottom: 1px solid #bbb;
 }
+
 #tabContent{
-    position: absolute;
-    top: 150px;
+    position: fixed;
+    top: 50px;
     left: 231px;
-    overflow-y: scroll;
+    height: 90%;
 }
 
 body {
     font: 10px sans-serif;
 }
 
+#main {
+    position: relative;
+    height: 50%;
+    width: 70%;
+}
+
+.navTab {
+    text-align: center;
+    font-size: 18px;
+    max-width:100px;
+    float: left;
+    margin-left: 10px;
+    margin-right: 10px;
+}
+
+#rootTasks{
+    overflow-y: scroll;
+    float: left;
+}
+
+#archive {
+    position: relative;
+    height: 50%;
+}
+
+#archiveList{
+    overflow-y: scroll;
+}
+
+#archive .archiveEntry{
+    overflow-y: scroll;
+}
 
 /* Begin General Styling */
 #tabContent {
@@ -105,18 +145,23 @@ body {
     font-size: 12px;
     padding-left: 10px;
 }
+
+.warning{
+    font-size: 20px;
+    margin-top: 20px;
+}
+
 /* End General Styling */
 
 /* Begin Task Tree Styling */
-.task {
-    width: 500px;
-}
 .taskMeta {
+    width: 500px;
     border: 1px solid #ccc;
 }
 .taskInfo {
     float: none;
     display: inline-block;
+    max-width: 400px;
 }
 
 .taskInfo .desc{
@@ -141,7 +186,7 @@ body {
 
 #globalTaskButtons {
     width: 500px;
-    height: 140px;
+    height: 40px;
 }
 
 #globalTaskButtons .taskFormWrapper{
@@ -181,7 +226,9 @@ body {
 }
 
 .archivedTask .info{
+    margin-left: 10px;
     display: inline-block;
+    max-width: 330px;
 }
 /* End Archive Styling */
 
@@ -204,8 +251,10 @@ body {
 #listFormInputWrapper{
     float: left;
     display: inline-block;
-    width: 60%;
+    width: 55%;
     height: 80px;
+    margin-left: 10px;
+    margin-right: 5px;
 }
 
 #listFormWrapper input{
@@ -219,9 +268,12 @@ body {
 
 .listEntry {
     height: 42px;
+    margin-right: 5px;
 }
 
 .listEntry .info{
+    font-size: 18px;
+    margin-left: 10px;
     display: inline-block;
 }
 
@@ -229,6 +281,10 @@ body {
     margin-top: 5px;
 }
 
+.listEntry.focused{
+    background: #bbb;
+    color: #fff;
+}
 /* End List Styling */
 
 /* Begin Histogram Styling */

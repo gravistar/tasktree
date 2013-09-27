@@ -79,6 +79,12 @@ $(function (){
         renderTaskForest();
         updateArchiveList();
         updateListsList();
+        var $allLists = $("#allLists");
+        if (focusedList === null){
+            $allLists.addClass("focused");
+        } else {
+            $allLists.removeClass("focused");
+        }
         var logDurationData = _.map(getDurationData(), function(durationMs){
             return Math.log(durationMs);
         });
@@ -89,6 +95,11 @@ $(function (){
             return jsUtil.humanReadableShort(d);
         };
         buildHistogram(logDurationData, formatLogDuration);
+        if (logDurationData.length === 0){
+            $("#stats").find(".warning").first().show();
+        } else {
+            $("#stats").find(".warning").first().hide();
+        }
     }
 
     /**
@@ -102,6 +113,11 @@ $(function (){
         _.each(focusedRoots, rootTaskChangedCb);
         // make sortable AFTER items added (nested sortable?)
         $main.find(".subtasks").first().sortable();
+        if (focusedRoots.length === 0){
+            $main.find(".warning").first().show();
+        } else {
+            $main.find(".warning").first().hide();
+        }
     }
 
     /**
@@ -118,13 +134,13 @@ $(function (){
      * Adds the listener to the list add button.
      */
     function addGlobalListButtons(){
+        var $allLists = $("#allLists");
         $("#listFormWrapper .listAdd").first().click(function(e){
             e.preventDefault();
             listTable.insert(createListFromForm($("#listAddForm")));
         });
-        $("#allLists").click(function(e){
+        $allLists.click(function(e){
             e.preventDefault();
-            console.log("all lists clicked!");
             config.set("focusedListId", null);
         });
     }
@@ -135,7 +151,6 @@ $(function (){
      */
     function addConfigMutator($list){
         $list.click(function (e){
-            console.log("list clicked!: " + $list.attr("id"));
             e.preventDefault();
             config.set("focusedListId", $list.attr("id"));
         });
@@ -656,7 +671,14 @@ $(function (){
     function renderArchiveEntry(archiveEntry) {
         // remove if it has no children
         var archiveEntryData = DatastoreUtil.getFieldValuesWithId(archiveEntry);
-        archiveEntryData.numTasks = archiveEntry.get("tasks").length();
+        var archivedTaskIds = archiveEntry.get("tasks").toArray();
+        var archivedTasks = DatastoreUtil.bulkGet(taskTable, archivedTaskIds);
+        if (focusedList !== null){
+            archivedTasks = _.filter(archivedTasks, function(archivedTask){
+                return archivedTask.get("listId") === focusedList.getId();
+            });
+        }
+        archiveEntryData.numTasks = archivedTasks.length;
         var $archiveEntry = ich.archiveEntry(archiveEntryData);
         var $taskList = $archiveEntry.find("ul.tasks").first();
         var tasks = getArchiveEntryTasks(archiveEntry);
@@ -692,7 +714,7 @@ $(function (){
         if (!TreeUtil.isRoot(task)){
             parent = taskTable.get(task.get(TreeUtil.PARENT_ID_FIELD));
             if (TaskTree.archived(parent)) {
-                $task.find("button.unarchive").first().hide();
+                $task.find("button.unarchive").first().attr("disabled", true);
             }
         }
     }
@@ -735,6 +757,12 @@ $(function (){
             $archiveList.append($archiveEntry);
             addArchiveButtonListeners($archiveEntry);
         });
+
+        if (archiveEntrys.length === 0) {
+            $("#archive").find(".warning").first().show();
+        } else {
+            $("#archive").find(".warning").first().hide();
+        }
     }
 
     /**
@@ -825,7 +853,11 @@ $(function (){
      * @param listEntry
      */
     function renderListEntry(listEntry){
-        return ich.listEntry(DatastoreUtil.getFieldValuesWithId(listEntry));
+        var $listEntry = ich.listEntry(DatastoreUtil.getFieldValuesWithId(listEntry));
+        if (focusedList !== null && focusedList.getId() === listEntry.getId()){
+            $listEntry.addClass("focused");
+        }
+        return $listEntry;
     }
 
     function $tabContentMutator(rcEvent){
@@ -879,9 +911,8 @@ $(function (){
         var $histogram = $("#histogram")
             .attr("width", width + margin.left + margin.right)
             .attr("height", height + margin.top + margin.bottom);
-        $("#histogram").empty();
+        $histogram.empty();
         if (values.length < 2) {
-            $histogram.text("Not enough tasks completed to plot histogram!");
             return;
         }
 
@@ -930,7 +961,6 @@ $(function (){
             .attr("class", "x axis")
             .attr("transform", "translate(0," + height + ")")
             .call(xAxis);
-
     }
 
     /**

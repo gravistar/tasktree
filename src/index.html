@@ -82,7 +82,7 @@
             <div class="archiveEntryHeader">
                 <div class="info">
                     <label>{{date}}</label>
-                    <label>Num tasks: {{numTasks}}</label>
+                    <label># tasks: {{numTasks}}</label>
                 </div>
                 <div class="rightButtons"><button class="showTasks">></button></div>
             </div>
@@ -147,11 +147,11 @@
 <body>
 <div id="wrapper">
     <div id="sidebar">
-        <div id="sidebarTitle">Lists</div>
+
         <div id="listFormWrapper">
             <div id="listFormInputWrapper">
                 <form id="listAddForm">
-                    <label>List Name:
+                    <label>New List:
                         <input type="text" name="name">
                     </label>
                 </form>
@@ -160,21 +160,26 @@
                     <button type="submit" class="listAdd">&plus;</button>
             </div>
         </div>
-        <div id="allLists">
-            All
+        <div id="sidebarTitle">Lists</div>
+        <div id="allLists" class="listEntry">
+            <div class="info">
+                <span class="name">
+                All
+                </span>
+            </div>
         </div>
         <ul id="listsList">
         </ul>
     </div>
 
     <ul id="menuTabs" class="nav navTabs">
-        <li class="active">
+        <li class="active navTab">
             <a href="#main">Task Tree</a>
         </li>
-        <li>
+        <li class="navTab">
             <a href="#archive">Archive</a>
         </li>
-        <li>
+        <li class="navTab">
             <a href="#stats">Stats</a>
         </li>
     </ul>
@@ -190,17 +195,25 @@
             </div>
 
             <!-- task tree is here -->
-            <ul class="subtasks">
+            <ul id="rootTasks" class="subtasks">
             </ul>
+            <div class="warning">
+                No tasks outstanding.
+            </div>
         </div>
         <div id="archive" class="tab-pane">
             <ul id="archiveList">
             </ul>
+            <div class="warning">
+                No archived tasks.
+            </div>
         </div>
-        <div id="stats" class="tab-pane">
-            <svg id="histogram">
 
-            </svg>
+        <div id="stats" class="tab-pane">
+            <div class="warning">
+                Need at least 2 completed tasks to build histogram!
+            </div>
+            <svg id="histogram"></svg>
         </div>
     </div>
 

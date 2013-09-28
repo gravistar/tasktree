@@ -25,7 +25,8 @@ var TaskTree = (function() {
      */
     ret.buildConfig = function(){
         var ret = {
-            queue : []
+            queue : [],
+            focusedTab : "mainTab"
         };
         return ret;
     };

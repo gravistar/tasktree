@@ -263,7 +263,12 @@ body {
 
 #allLists {
     border: 1px solid #ccc;
-    height: 42px;
+    height: 64px;
+}
+
+#allLists .info{
+    margin-top: 10px;
+    display: inline-block;
 }
 
 .listEntry {

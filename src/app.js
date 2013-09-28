@@ -8,7 +8,8 @@ var DROPBOX_APP_KEY = 'nvhuh359xzvfexc';
 var client = new Dropbox.Client({key: DROPBOX_APP_KEY});
 
 $(function (){
-    var taskTable, taskTableId = "tasks", $main = $("#main"), $listsList = $("#listsList"), $app=$("#app");
+    var taskTable, taskTableId = "tasks", $main = $("#main"), $listsList = $("#listsList"), $app=$("#app"),
+        $stats = $("#stats"), $archive = $("#archive");
     var archiveTable, archiveTableId = "archive";
     var listTable, listTableId = "lists";
     var config, configTable, configTableId = "config"; // literally just keeps track of which list is focused
@@ -87,7 +88,13 @@ $(function (){
             $allLists.removeClass("focused");
         }
         var logDurationData = _.map(getDurationData(), function(durationMs){
-            return Math.log(durationMs);
+            var logVal = Math.log(durationMs);
+            // if it is less than a minute, cut it off
+            var minuteLog = Math.log(60000);
+            if (logVal < minuteLog){
+                logVal = minuteLog;
+            }
+            return logVal;
         });
         console.log("log duration data: " + logDurationData);
         var formatLogDuration = function(logD) {
@@ -97,9 +104,9 @@ $(function (){
         };
         buildHistogram(logDurationData, formatLogDuration);
         if (logDurationData.length === 0){
-            $("#stats").find(".warning").first().show();
+            toggleWarning($stats, true);
         } else {
-            $("#stats").find(".warning").first().hide();
+            toggleWarning($stats, false);
         }
     }
 
@@ -115,9 +122,9 @@ $(function (){
         // make sortable AFTER items added (nested sortable?)
         $main.find(".subtasks").first().sortable();
         if (focusedRoots.length === 0){
-            $main.find(".warning").first().show();
+            toggleWarning($main, true);
         } else {
-            $main.find(".warning").first().hide();
+            toggleWarning($main, false);
         }
     }
 
@@ -127,8 +134,13 @@ $(function (){
     function setupTabs(){
         $(".navTabs li a").click(function(e){
             e.preventDefault();
+            paintTabContainer();
             $(this).tab("show");
+            config.set("focusedTab", $(this).closest("li").first().attr("id"));
         });
+        var focused = config.get("focusedTab");
+        // activate the focused one
+        $("#" + focused).find("a").first().tab("show");
     }
 
     /**
@@ -137,8 +149,11 @@ $(function (){
     function addGlobalListButtons(){
         var $allLists = $("#allLists");
         $("#listFormWrapper .listAdd").first().click(function(e){
+            var $listAddForm = $("#listAddForm");
             e.preventDefault();
-            listTable.insert(createListFromForm($("#listAddForm")));
+            listTable.insert(createListFromForm($listAddForm));
+            // clear the input text. is there a better way?
+            $listAddForm.find("input[name='name']").val("");
         });
         $allLists.click(function(e){
             e.preventDefault();
@@ -170,10 +185,13 @@ $(function (){
             var listId = $(this).closest(".listEntry").first().attr("id");
             var list = listTable.get(listId);
 
-            // delete all the tasks that belong to this list
+            // delete all the tasks that belong to this list by deleting roots bottomup
             var tasks = taskTable.query({listId: listId});
-            _.each(tasks, function(task){
-                singleTaskDelete(task);
+            var roots = _.filter(tasks, function(task){
+                return TreeUtil.isRoot(task);
+            });
+            _.each(roots, function(root){
+                subtreeTaskDelete(root);
             });
 
             // update the config so it doesn't focus on this list
@@ -315,6 +333,18 @@ $(function (){
         var $parent = $(this).closest(".taskFormWrapper");
         createTaskFromForm($parent, TreeUtil.NO_PARENT);
         $parent.hide();
+        taskAddSideEffects($parent);
+    }
+
+    // Hack method and I'm not sure what should replace it
+    function taskAddSideEffects($parent){
+        // just added a task, so the warning needs to go away.
+        // this is really hacky and breaks the dom mutator/record mutator
+        // division. will think of a better way...
+        toggleWarning($main, false);
+
+        // clear the form
+        $parent.find("input[name='desc']").first().val("");
     }
 
     /**
@@ -329,6 +359,7 @@ $(function (){
             $parent = $this.closest(".taskFormWrapper").first();
         var created = createTaskFromForm($parent, $parentTask.attr("id"));
         updateCompletionAncestors(created, null);
+        taskAddSideEffects($parent);
     }
 
     /**
@@ -544,6 +575,7 @@ $(function (){
      * @param $task
      */
     function renderTaskState(task, $task){
+        var children, unarchivedChildren;
         // mark completed
         if (TaskTree.completed(task)) {
             $task.find(".completeBox").first().find("input").attr("checked", "true");
@@ -554,10 +586,21 @@ $(function (){
 
         if (TreeUtil.isLeaf(task, TaskTree.CHILD_LIST_FIELD)){
             $task.find(".showSubtasks").first().hide();
+        } else {
+            children = DatastoreUtil.bulkGet(taskTable, task.get(TaskTree.CHILD_LIST_FIELD).toArray());
+            unarchivedChildren = _.filter(children, function(child){
+                return !TaskTree.archived(child);
+            });
+            if (unarchivedChildren.length === 0){
+                $task.find("button.showSubtasks").first().attr("disabled", true);
+            }
         }
 
         if (!TaskTree.expanded(task)){
             $task.find(".subtasks").first().hide();
+            $task.find("button.showSubtasks").first().text(">");
+        } else {
+            $task.find("button.showSubtasks").first().text("V");
         }
     }
 
@@ -700,6 +743,9 @@ $(function (){
     function renderArchiveEntryState(archiveEntry, $archiveEntry){
         if (!TaskTree.expanded(archiveEntry)){
             $archiveEntry.find(".tasks").first().hide();
+            $archiveEntry.find("button.showTasks").first().text(">");
+        } else {
+            $archiveEntry.find("button.showTasks").first().text("V");
         }
     }
 
@@ -714,6 +760,7 @@ $(function (){
         var parent;
         if (!TreeUtil.isRoot(task)){
             parent = taskTable.get(task.get(TreeUtil.PARENT_ID_FIELD));
+            console.log("task id: " + task.getId() + " parent null?: " + (parent===null));
             if (TaskTree.archived(parent)) {
                 $task.find("button.unarchive").first().attr("disabled", true);
             }
@@ -760,9 +807,9 @@ $(function (){
         });
 
         if (archiveEntrys.length === 0) {
-            $("#archive").find(".warning").first().show();
+            toggleWarning($archive, true);
         } else {
-            $("#archive").find(".warning").first().hide();
+            toggleWarning($archive, false);
         }
     }
 
@@ -962,6 +1009,15 @@ $(function (){
             .attr("class", "x axis")
             .attr("transform", "translate(0," + height + ")")
             .call(xAxis);
+    }
+
+    function toggleWarning($parent, show){
+        var $warning = $parent.find(".warning").first();
+        if (show){
+            $warning.show();
+        } else {
+            $warning.hide();
+        }
     }
 
     /**

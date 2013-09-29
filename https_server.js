@@ -3,8 +3,8 @@ var https = require('https');
 var fs = require('fs');
 
 var options = {
-    cert: fs.readFileSync('/home/ubuntu/cert-TM7TXVXP26KYSFJUMVV4SARAHATDN6R5.pem'),
-    key: fs.readFileSync('/home/ubuntu/pk-TM7TXVXP26KYSFJUMVV4SARAHATDN6R5.pem')
+    cert: fs.readFileSync('server.crt'),
+    key: fs.readFileSync('server.key'),
 };
 var port = 443;
 var app = express();
